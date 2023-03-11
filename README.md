@@ -3,7 +3,7 @@
 Clone this repo and execute these commands in the shell:
 
 ```sh
-python install adafruit-io
-python install pyserial
+pip install adafruit-io
+pip install pyserial
 python adf_server.py
 ```
