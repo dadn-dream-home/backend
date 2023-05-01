@@ -7,7 +7,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
@@ -47,22 +46,20 @@ func (db *Database) Close() {
 	db.olddb.Close()
 }
 
-func (db *Database) InsertFeed(name string, ty pb.FeedType) *pb.Feed {
-	id := uuid.New().String()
-	_, err := db.olddb.Exec("INSERT INTO feeds (id, name, type) VALUES (?, ?, ?)", id, name, ty)
+func (db *Database) InsertFeed(id string, ty pb.FeedType) *pb.Feed {
+	_, err := db.olddb.Exec("INSERT INTO feeds (id, type) VALUES (?, ?)", id, ty)
 	if err != nil {
 		panic(err)
 	}
 
 	return &pb.Feed{
 		Id:   id,
-		Name: name,
 		Type: ty,
 	}
 }
 
 func (db *Database) ListFeeds() []*pb.Feed {
-	rows, err := db.olddb.Query("SELECT id, name, type FROM feeds")
+	rows, err := db.olddb.Query("SELECT id, type FROM feeds")
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +67,7 @@ func (db *Database) ListFeeds() []*pb.Feed {
 	var feeds []*pb.Feed
 	for rows.Next() {
 		var feed pb.Feed
-		if err := rows.Scan(&feed.Id, &feed.Name, &feed.Type); err != nil {
+		if err := rows.Scan(&feed.Id, &feed.Type); err != nil {
 			panic(err)
 		}
 		feeds = append(feeds, &feed)

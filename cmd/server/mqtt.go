@@ -30,7 +30,7 @@ func NewMQTTClient() MQTTClient {
 
 // Establishes a bidirectional channel to the topic
 func (c *MQTTClient) Subscribe(topic string) (tx chan<- []byte, rx <-chan []byte) {
-	
+
 	// lock and unlock mutex at the end of the scope
 	(func() {
 		c.Lock()
@@ -48,6 +48,7 @@ func (c *MQTTClient) Subscribe(topic string) (tx chan<- []byte, rx <-chan []byte
 	// for simplicity, not for reliability
 	var qos byte = 2
 	if t := c.oldClient.Subscribe(topic, qos, func(_ mqtt.Client, m mqtt.Message) {
+		log.Printf("received topic %v: %s\n", topic, string(m.Payload()))
 		rch <- m.Payload()
 	}); t.Wait() && t.Error() != nil {
 		panic(t.Error())

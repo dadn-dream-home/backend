@@ -15,7 +15,7 @@ service BackendService {
   rpc DeleteFeed(DeleteFeedRequest) returns (DeleteFeedResponse);
 }
 
-message StreamFeedValuesRequest { string feedId = 1; }
+message StreamFeedValuesRequest { string id = 1; }
 
 message StreamFeedValuesResponse { float value = 1; }
 
@@ -24,8 +24,8 @@ message ListFeedsRequest {}
 message ListFeedsResponse { repeated Feed feeds = 1; }
 
 message CreateFeedRequest {
-  string name = 1;
-  FeedType sensorType = 2;
+  string id = 1;
+  FeedType type = 2;
 }
 
 message CreateFeedResponse { string id = 1; }
@@ -44,6 +44,5 @@ enum FeedType {
 
 message Feed {
   string id = 1;
-  string name = 2;
-  FeedType type = 3;
+  FeedType type = 2;
 }
