@@ -1,34 +1,26 @@
 package main
 
 import (
-	"path"
-	"runtime"
-	"strconv"
+	"context"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 var wg sync.WaitGroup
+var log = logrus.New()
 
 func main() {
-	log.SetFormatter(&log.TextFormatter{
-		ForceColors:   true,
-		FullTimestamp: false,
-		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
-			// log filename and linenumber only
-			fileName := path.Base(f.File) + ":" + strconv.Itoa(f.Line)
-			return f.Function, fileName
-		},
-	})
-	log.SetReportCaller(true)
+	ctx := context.Background()
+
+	InitLogging()
 
 	service, err := NewBackendGrpcService()
 	if err != nil {
 		log.WithError(err).Fatal("failed to create backend grpc service")
 	}
 
-	service.Init()
+	service.Init(ctx)
 	service.Serve()
 	wg.Wait()
 }

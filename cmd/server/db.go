@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -85,8 +86,19 @@ func (db *Database) Close() error {
 	return db.olddb.Close()
 }
 
-func (db *Database) InsertFeed(id string, ty pb.FeedType) (*pb.Feed, error) {
-	_, err := db.olddb.Exec("INSERT INTO feeds (id, type) VALUES (?, ?)", id, ty)
+func (db *Database) InsertFeed(ctx context.Context, id string, ty pb.FeedType) (feed *pb.Feed, err error) {
+	log := LoggerFromContext(ctx)
+	log = log.WithField("id", id).WithField("type", ty)
+	log.Infof("inserting feed\n")
+	defer func() {
+		if err != nil {
+			log.WithError(err).Errorf("error inserting feeds\n")
+		} else {
+			log.Infof("inserted feed\n")
+		}
+	}()
+
+	_, err = db.olddb.Exec("INSERT INTO feeds (id, type) VALUES (?, ?)", id, ty)
 	if err != nil {
 		if errors.Is(err, driver.ErrConstraintUnique) {
 			return nil, errors.Join(ErrorFeedExists, err)
@@ -100,13 +112,21 @@ func (db *Database) InsertFeed(id string, ty pb.FeedType) (*pb.Feed, error) {
 	}, nil
 }
 
-func (db *Database) ListFeeds() ([]*pb.Feed, error) {
+func (db *Database) ListFeeds(ctx context.Context) (feeds []*pb.Feed, err error) {
+	log := LoggerFromContext(ctx)
+
+	log.Infof("listing feeds\n")
+	defer func() {
+		if err != nil {
+			log.WithError(err).Errorf("error listing feeds\n")
+		}
+	}()
+
 	rows, err := db.olddb.Query("SELECT id, type FROM feeds")
 	if err != nil {
 		return nil, fmt.Errorf("error querying feeds: %w", err)
 	}
 
-	var feeds []*pb.Feed
 	for rows.Next() {
 		var feed pb.Feed
 		if err := rows.Scan(&feed.Id, &feed.Type); err != nil {
@@ -118,7 +138,18 @@ func (db *Database) ListFeeds() ([]*pb.Feed, error) {
 	return feeds, nil
 }
 
-func (db *Database) DeleteFeed(id string) error {
+func (db *Database) DeleteFeed(ctx context.Context, id string) (err error) {
+	log := LoggerFromContext(ctx)
+	log = log.WithField("feed", id)
+	log.Infof("deleting feeds\n")
+	defer func() {
+		if err != nil {
+			log.WithError(err).Errorf("error listing feeds\n")
+		} else {
+			log.Infof("listed feeds\n")
+		}
+	}()
+
 	r, err := db.olddb.Exec("DELETE FROM feeds WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("error deleting feed: %w", err)
@@ -135,8 +166,18 @@ func (db *Database) DeleteFeed(id string) error {
 	return nil
 }
 
-func (db *Database) InsertFeedValue(feedId string, value float32) error {
-	_, err := db.olddb.Exec("INSERT INTO feed_values (feed_id, value) VALUES (?, ?)", feedId, value)
+func (db *Database) InsertFeedValue(ctx context.Context, feedId string, value float32) (err error) {
+	log := LoggerFromContext(ctx).WithField("feed", feedId).WithField("value", value)
+	log.Infof("inserting feed value\n")
+	defer func() {
+		if err != nil {
+			log.WithError(err).Errorf("error inserting feed value\n")
+		} else {
+			log.Infof("inserted feed value\n")
+		}
+	}()
+
+	_, err = db.olddb.Exec("INSERT INTO feed_values (feed_id, value) VALUES (?, ?)", feedId, value)
 	if err != nil {
 		return fmt.Errorf("error inserting feed value: %w", err)
 	}

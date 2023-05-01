@@ -7,8 +7,6 @@ import (
 	"net"
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
-
 	pb "github.com/dadn-dream-home/x/protobuf"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -47,7 +45,14 @@ func NewBackendGrpcService() (*BackendGrpcService, error) {
 	service := &BackendGrpcService{
 		MQTTClient: NewMQTTClient(),
 		Database:   database,
-		Server:     grpc.NewServer(),
+		Server: grpc.NewServer(
+			grpc.ChainUnaryInterceptor(
+				requestIdUnaryInterceptor,
+			),
+			grpc.ChainStreamInterceptor(
+				requestIdStreamInterceptor,
+			),
+		),
 	}
 	pb.RegisterBackendServiceServer(service.Server, service)
 	reflection.Register(service.Server)
@@ -55,9 +60,9 @@ func NewBackendGrpcService() (*BackendGrpcService, error) {
 	return service, nil
 }
 
-func (s *BackendGrpcService) Init() error {
+func (s *BackendGrpcService) Init(ctx context.Context) error {
 	// get feeds from database and subscribe to them
-	feeds, err := s.Database.ListFeeds()
+	feeds, err := s.Database.ListFeeds(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list feeds: %w", err)
 	}
@@ -67,14 +72,14 @@ func (s *BackendGrpcService) Init() error {
 		rx <-chan []byte
 	}, len(feeds))
 	for _, feed := range feeds {
-		s.Subscribe(feed.Id)
+		s.Subscribe(ctx, feed.Id)
 	}
 
 	return nil
 }
 
-func (s *BackendGrpcService) Subscribe(topic string) {
-	tx, rx := s.MQTTClient.Subscribe(topic)
+func (s *BackendGrpcService) Subscribe(ctx context.Context, topic string) {
+	tx, rx := s.MQTTClient.Subscribe(ctx, topic)
 	s.feedChannels[topic] = struct {
 		tx chan<- []byte
 		rx <-chan []byte
@@ -82,39 +87,43 @@ func (s *BackendGrpcService) Subscribe(topic string) {
 }
 
 func (s *BackendGrpcService) Serve() {
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 8080))
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 50051))
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.WithError(err).Fatalf("failed to listen")
 	}
 
 	log.Printf("server listening at %v\n", lis.Addr())
 	if err := s.Server.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.WithError(err).Fatalf("failed to serve")
 	}
 }
 
 func (s *BackendGrpcService) StreamFeedValues(r *pb.StreamFeedValuesRequest, stream pb.BackendService_StreamFeedValuesServer) error {
-	// TODO: check if feed exists
+	log := LoggerFromContext(stream.Context())
+	log = log.WithField("feed", r.Id)
 
 	ch, ok := s.feedChannels[r.Id]
 	if !ok {
-		panic("channels not exist")
+		panic("feed not exist")
 	}
+
+	log.Infof("begin streaming\n")
 
 outer:
 	for {
 		select {
 		case payload, ok := <-ch.rx:
 			if !ok {
-				log.Printf("warning: channel for feed %v closed\n", r.Id)
+				log.Warnln("channel closed")
 				break outer
 			}
 
-			log.Printf("received message from feed %v: %s\n", r.Id, string(payload))
+			log = log.WithField("payload", string(payload))
+			log.Infof("received payload\n")
 
 			value, err := strconv.ParseFloat(string(payload), 32)
 			if err != nil {
-				log.Printf("warning: failed to parse payload from feed %v: %s", r.Id, string(payload))
+				log.Warnf("failed to parse payload\n")
 				continue
 			}
 
@@ -126,13 +135,15 @@ outer:
 		}
 	}
 
-	log.Printf("finished streaming feed %v\n", r.Id)
+	log.Infof("finished streaming\n")
 
 	return stream.Context().Err()
 }
 
 func (s *BackendGrpcService) CreateFeed(ctx context.Context, r *pb.CreateFeedRequest) (*pb.CreateFeedResponse, error) {
-	feed, err := s.Database.InsertFeed(r.Id, r.Type)
+	log := log.WithField("feed", r.Id)
+
+	feed, err := s.Database.InsertFeed(ctx, r.Id, r.Type)
 	if err != nil {
 		log.WithError(err).Errorf("failed to insert feed")
 		if errors.Is(err, ErrorFeedExists) {
@@ -141,7 +152,7 @@ func (s *BackendGrpcService) CreateFeed(ctx context.Context, r *pb.CreateFeedReq
 		return nil, err
 	}
 
-	s.Subscribe(feed.Id)
+	s.Subscribe(ctx, feed.Id)
 
 	return &pb.CreateFeedResponse{
 		Id: feed.Id,
