@@ -30,12 +30,16 @@ func NewMQTTClient() MQTTClient {
 
 // Establishes a bidirectional channel to the topic
 func (c *MQTTClient) Subscribe(topic string) (tx chan<- []byte, rx <-chan []byte) {
-	c.Lock()
-	if _, ok := c.topicChannels[topic]; ok {
-		panic("already subscribed to topic " + topic)
-	}
-	c.topicChannels[topic] = true
-	c.Unlock()
+	
+	// lock and unlock mutex at the end of the scope
+	(func() {
+		c.Lock()
+		defer c.Unlock()
+		if _, ok := c.topicChannels[topic]; ok {
+			panic("already subscribed to topic " + topic)
+		}
+		c.topicChannels[topic] = true
+	})()
 
 	tch := make(chan []byte)
 	rch := make(chan []byte)
