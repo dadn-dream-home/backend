@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+option go_package = "github.com/dadn-dream-home/x/protobuf";
+
+package protobuf;
+
+service BackendService {
+  rpc StreamFeedValues(StreamFeedValuesRequest)
+      returns (stream StreamFeedValuesResponse);
+
+  rpc ListFeeds(ListFeedsRequest) returns (ListFeedsResponse);
+
+  rpc CreateFeed(CreateFeedRequest) returns (CreateFeedResponse);
+
+  rpc DeleteFeed(DeleteFeedRequest) returns (DeleteFeedResponse);
+}
+
+message StreamFeedValuesRequest { string feedId = 1; }
+
+message StreamFeedValuesResponse { float value = 1; }
+
+message ListFeedsRequest {}
+
+message ListFeedsResponse { repeated Feed feeds = 1; }
+
+message CreateFeedRequest {
+  string name = 1;
+  FeedType sensorType = 2;
+}
+
+message CreateFeedResponse { string id = 1; }
+
+message DeleteFeedRequest { string id = 1; }
+
+message DeleteFeedResponse {}
+
+// data types
+
+enum FeedType {
+  TEMPERATURE = 0;
+  HUMIDITY = 1;
+  LIGHT = 2;
+}
+
+message Feed {
+  string id = 1;
+  string name = 2;
+  FeedType type = 3;
+}
