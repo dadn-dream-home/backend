@@ -2,12 +2,13 @@ package main
 
 import (
 	"database/sql"
-	"log"
+	"errors"
+	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/mattn/go-sqlite3"
+	driver "github.com/mattn/go-sqlite3"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
 )
@@ -16,89 +17,145 @@ type Database struct {
 	olddb *sql.DB
 }
 
-func NewDatabase() Database {
-	db, err := sql.Open("sqlite3", "./db.sqlite3")
-	if err != nil {
-		log.Fatal(err)
-	}
+var (
+	ErrorFeedNotFound = errors.New("feed not found")
+	ErrorFeedExists   = errors.New("feed already exists")
+)
 
-	instance, err := sqlite3.WithInstance(db, &sqlite3.Config{})
-	if err != nil {
-		log.Fatal(err)
-	}
+func NewDatabase() (db Database, err error) {
 
-	fSrc, err := (&file.File{}).Open("./migrations")
+	// open db with database/sql
+
+	dbPath := "./db.sqlite3"
+	migrationsPath := "./migrations"
+
+	olddb, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		log.Fatal(err)
+		return Database{}, fmt.Errorf("failed to open %s with database/sql: %w", dbPath, err)
 	}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, olddb.Close())
+		}
+	}()
+
+	// open db with driver for migrators
+
+	instance, err := sqlite3.WithInstance(olddb, &sqlite3.Config{})
+	if err != nil {
+		return Database{}, fmt.Errorf("failed to open %s with driver for migrators: %w", dbPath, err)
+	}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, instance.Close())
+		}
+	}()
+
+	// open migrations
+
+	fSrc, err := (&file.File{}).Open(migrationsPath)
+	if err != nil {
+		return Database{}, fmt.Errorf("failed to open migrations at %s: %w", migrationsPath, err)
+	}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, fSrc.Close())
+		}
+	}()
+
+	// init migrator
 
 	m, err := migrate.NewWithInstance("file", fSrc, "sqlite3", instance)
 	if err != nil {
-		log.Fatal(err)
+		return Database{}, fmt.Errorf("failed to init migrator: %w", err)
+	}
+	// defer func() {
+	// 	serr, dberr := m.Close()
+	// 	err = errors.Join(err, serr, dberr)
+	// }()
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return Database{}, fmt.Errorf("failed to migrate: %w", err)
 	}
 
-	m.Up()
-
-	return Database{db}
+	return Database{olddb}, nil
 }
 
-func (db *Database) Close() {
-	db.olddb.Close()
+func (db *Database) Close() error {
+	return db.olddb.Close()
 }
 
-func (db *Database) InsertFeed(id string, ty pb.FeedType) *pb.Feed {
+func (db *Database) InsertFeed(id string, ty pb.FeedType) (*pb.Feed, error) {
 	_, err := db.olddb.Exec("INSERT INTO feeds (id, type) VALUES (?, ?)", id, ty)
 	if err != nil {
-		panic(err)
+		if errors.Is(err, driver.ErrConstraintUnique) {
+			return nil, errors.Join(ErrorFeedExists, err)
+		}
+		return nil, fmt.Errorf("error inserting feed: %w", err)
 	}
 
 	return &pb.Feed{
 		Id:   id,
 		Type: ty,
-	}
+	}, nil
 }
 
-func (db *Database) ListFeeds() []*pb.Feed {
+func (db *Database) ListFeeds() ([]*pb.Feed, error) {
 	rows, err := db.olddb.Query("SELECT id, type FROM feeds")
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("error querying feeds: %w", err)
 	}
 
 	var feeds []*pb.Feed
 	for rows.Next() {
 		var feed pb.Feed
 		if err := rows.Scan(&feed.Id, &feed.Type); err != nil {
-			panic(err)
+			return nil, fmt.Errorf("error scanning row: %w", err)
 		}
 		feeds = append(feeds, &feed)
 	}
 
-	return feeds
+	return feeds, nil
 }
 
 func (db *Database) DeleteFeed(id string) error {
-	_, err := db.olddb.Exec("DELETE FROM feeds WHERE id = ?", id)
-	return err
+	r, err := db.olddb.Exec("DELETE FROM feeds WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("error deleting feed: %w", err)
+	}
+
+	n, err := r.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting rows affected: %w", err)
+	}
+	if n == 0 {
+		return ErrorFeedNotFound
+	}
+
+	return nil
 }
 
 func (db *Database) InsertFeedValue(feedId string, value float32) error {
 	_, err := db.olddb.Exec("INSERT INTO feed_values (feed_id, value) VALUES (?, ?)", feedId, value)
-	return err
+	if err != nil {
+		return fmt.Errorf("error inserting feed value: %w", err)
+	}
+	return nil
 }
 
-func (db *Database) SummariseFeedValues(feedId string) (avg float32) {
+func (db *Database) SummariseFeedValues(feedId string) (avg float32, err error) {
 	rows, err := db.olddb.Query("SELECT AVG(value) FROM feed_values WHERE feed_id = ?", feedId)
 	if err != nil {
-		panic(err)
+		return 0, fmt.Errorf("error querying: %w", err)
 	}
 
 	if !rows.Next() {
-		panic(rows.Err())
+		return 0, fmt.Errorf("no row: %w", rows.Err())
 	}
 
 	if err := rows.Scan(&avg); err != nil {
-		panic(err)
+		return 0, fmt.Errorf("error scanning: %w", err)
 	}
 
-	return avg
+	return avg, nil
 }
