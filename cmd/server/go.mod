@@ -7,7 +7,10 @@ replace github.com/dadn-dream-home/x/protobuf => ../../protobuf
 require (
 	github.com/dadn-dream-home/x/protobuf v1.0.0
 	github.com/eclipse/paho.mqtt.golang v1.4.2
+	github.com/google/uuid v1.3.0
+	github.com/mattn/go-sqlite3 v1.14.16
 	google.golang.org/grpc v1.54.0
+	github.com/golang-migrate/migrate/v4 v4.15.2
 )
 
 require (

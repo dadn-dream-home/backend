@@ -1,6 +1,12 @@
 package main
 
-import "sync"
+import (
+	"log"
+	"math/rand"
+	"sync"
+
+	pb "github.com/dadn-dream-home/x/protobuf"
+)
 
 var wg sync.WaitGroup
 
@@ -18,9 +24,16 @@ func main() {
 	// 	log.Fatalf("failed to serve: %v", err)
 	// }
 
-	mqtt := NewMQTTClient()
-	tx, _ := mqtt.Subscribe("test")
-	close(tx)
+	db := NewDatabase()
+	defer db.Close()
+	
+	feed := db.InsertFeed("test feed", pb.FeedType_TEMPERATURE)
+
+	for i := 0; i < 10; i++ {
+		db.InsertFeedValue(feed.Id, rand.Float32()*100.0)
+	}
+
+	log.Printf("feed values: %v\n", db.SummariseFeedValues(feed.Id))
 
 	wg.Wait()
 }
