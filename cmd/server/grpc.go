@@ -86,6 +86,14 @@ func (s *BackendGrpcService) Subscribe(ctx context.Context, topic string) {
 	}{tx, rx}
 }
 
+func (s *BackendGrpcService) Unsubscribe(ctx context.Context, topic string) {
+	channels := s.feedChannels[topic]
+	close(channels.tx)
+	delete(s.feedChannels, topic)
+
+	log.WithField("feed", topic).Infof("unsubscribed\n")
+}
+
 func (s *BackendGrpcService) Serve() {
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 50051))
 	if err != nil {
@@ -166,4 +174,15 @@ func (s *BackendGrpcService) ListFeeds(ctx context.Context, r *pb.ListFeedsReque
 	}
 
 	return &pb.ListFeedsResponse{Feeds: feeds}, nil
+}
+
+func (s *BackendGrpcService) DeleteFeed(ctx context.Context, r *pb.DeleteFeedRequest) (*pb.DeleteFeedResponse, error) {
+	err := s.Database.DeleteFeed(ctx, r.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+
+	s.Unsubscribe(ctx, r.Id)
+
+	return &pb.DeleteFeedResponse{}, nil
 }
