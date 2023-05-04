@@ -149,7 +149,7 @@ func (s *BackendGrpcService) CreateFeed(ctx context.Context, r *pb.CreateFeedReq
 		if errors.Is(err, ErrorFeedExists) {
 			return nil, status.Errorf(codes.AlreadyExists, err.Error())
 		}
-		return nil, err
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	s.Subscribe(ctx, feed.Id)
@@ -157,4 +157,13 @@ func (s *BackendGrpcService) CreateFeed(ctx context.Context, r *pb.CreateFeedReq
 	return &pb.CreateFeedResponse{
 		Id: feed.Id,
 	}, nil
+}
+
+func (s *BackendGrpcService) ListFeeds(ctx context.Context, r *pb.ListFeedsRequest) (*pb.ListFeedsResponse, error) {
+	feeds, err := s.Database.ListFeeds(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+
+	return &pb.ListFeedsResponse{Feeds: feeds}, nil
 }
