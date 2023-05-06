@@ -5,8 +5,11 @@ option go_package = "github.com/dadn-dream-home/x/protobuf";
 package protobuf;
 
 service BackendService {
-  rpc StreamFeedValues(StreamFeedValuesRequest)
+  rpc StreamSensorValues(StreamFeedValuesRequest)
       returns (stream StreamFeedValuesResponse);
+
+  rpc StreamActuatorStates(StreamActuatorStatesRequest)
+      returns (stream StreamActuatorStatesResponse);
 
   rpc ListFeeds(ListFeedsRequest) returns (ListFeedsResponse);
 
@@ -19,6 +22,10 @@ message StreamFeedValuesRequest { string id = 1; }
 
 message StreamFeedValuesResponse { float value = 1; }
 
+message StreamActuatorStatesRequest { string id = 1; }
+
+message StreamActuatorStatesResponse { bool state = 1; }
+
 message ListFeedsRequest {}
 
 message ListFeedsResponse { repeated Feed feeds = 1; }
@@ -28,7 +35,10 @@ message CreateFeedRequest {
   FeedType type = 2;
 }
 
-message CreateFeedResponse { string id = 1; }
+message CreateFeedResponse {
+  string id = 1;
+  FeedType type = 2;
+}
 
 message DeleteFeedRequest { string id = 1; }
 
@@ -44,5 +54,6 @@ enum FeedType {
 
 message Feed {
   string id = 1;
-  FeedType type = 2;
+  string description = 2;
+  FeedType type = 3;
 }

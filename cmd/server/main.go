@@ -2,25 +2,19 @@ package main
 
 import (
 	"context"
-	"sync"
 
-	"github.com/sirupsen/logrus"
+	"github.com/dadn-dream-home/x/server/services"
+	"github.com/dadn-dream-home/x/server/telemetry"
 )
-
-var wg sync.WaitGroup
-var log = logrus.New()
 
 func main() {
 	ctx := context.Background()
+	ctx = telemetry.InitLogger(ctx)
+	log := telemetry.GetLogger(ctx)
 
-	InitLogging()
-
-	service, err := NewBackendGrpcService()
+	grpcService, err := services.NewBackendService(ctx)
 	if err != nil {
-		log.WithError(err).Fatal("failed to create backend grpc service")
+		log.WithError(err).Fatal("failed to create backend service")
 	}
-
-	service.Init(ctx)
-	service.Serve()
-	wg.Wait()
+	grpcService.Serve(ctx)
 }
