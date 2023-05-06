@@ -9,6 +9,7 @@ import (
 
 	"github.com/dadn-dream-home/x/server/handlers"
 	"github.com/dadn-dream-home/x/server/interceptors"
+	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"google.golang.org/grpc"
@@ -26,12 +27,15 @@ type BackendService struct {
 	handlers.StreamActuatorStatesHandler
 	handlers.StreamSensorValuesHandler
 
-	mqtt mqtt.Client
-	db   *sql.DB
+	mqtt   mqtt.Client
+	db     *sql.DB
+	pubSub state.PubSub
 }
 
+var _ state.State = (*BackendService)(nil)
+
 func NewBackendService(ctx context.Context) (*BackendService, error) {
-	service := BackendService{}
+	service := &BackendService{}
 
 	mqtt, err := NewMQTTClient(ctx)
 	if err != nil {
@@ -45,13 +49,18 @@ func NewBackendService(ctx context.Context) (*BackendService, error) {
 	}
 	service.db = db
 
+	service.pubSub, err = NewPubSub(ctx, service)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pubsub: %w", err)
+	}
+
 	// Inject dependencies into handlers, basically:
 	// service.Handler = &handlers.Handler{State: &service}
 
 	// TODO: could be great if the list is created from
 	// pb.unimplementedBackendServiceServer
 
-	serviceValue := reflect.ValueOf(&service)
+	serviceValue := reflect.ValueOf(service)
 	for _, handlerType := range []reflect.Type{
 		reflect.TypeOf(service.ListFeedsHandler),
 		reflect.TypeOf(service.CreateFeedHandler),
@@ -65,7 +74,7 @@ func NewBackendService(ctx context.Context) (*BackendService, error) {
 		serviceHandlerValue.Set(handlerValue.Elem())
 	}
 
-	return &service, nil
+	return service, nil
 }
 
 func (s *BackendService) MQTT() mqtt.Client {
@@ -74,6 +83,10 @@ func (s *BackendService) MQTT() mqtt.Client {
 
 func (s *BackendService) DB() *sql.DB {
 	return s.db
+}
+
+func (s *BackendService) PubSub() state.PubSub {
+	return s.pubSub
 }
 
 func (s *BackendService) Serve(ctx context.Context) {

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
@@ -30,31 +31,42 @@ func (h DeleteFeedHandler) DeleteFeed(ctx context.Context, req *pb.DeleteFeedReq
 	log := telemetry.GetLogger(ctx).WithField("feed_id", req.Id)
 	ctx = telemetry.ContextWithLogger(ctx, log)
 
-	err := h.deleteFeedInDatabase(ctx, req.Id)
+	tx, err := h.deleteFeedInDatabase(ctx, req.Id)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, err
+	}
+	defer commitOrRollback(tx, err)
+
+	err = h.PubSub().RemoveFeed(ctx, req.Id)
+	if err != nil {
+		return nil, err
 	}
 
 	return &pb.DeleteFeedResponse{}, nil
 }
 
-func (h DeleteFeedHandler) deleteFeedInDatabase(ctx context.Context, feedId string) error {
+func (h DeleteFeedHandler) deleteFeedInDatabase(ctx context.Context, feedId string) (*sql.Tx, error) {
 	log := telemetry.GetLogger(ctx)
 
 	log.Debugf("deleting feed from database")
 
-	res, err := h.DB().Exec("DELETE FROM feeds WHERE id = ?", feedId)
+	tx, err := h.DB().Begin()
 	if err != nil {
-		return fmt.Errorf("error deleting feed from database: %w", err)
+		return nil, fmt.Errorf("error beginning transaction: %w", err)
+	}
+
+	res, err := tx.Exec("DELETE FROM feeds WHERE id = ?", feedId)
+	if err != nil {
+		return nil, fmt.Errorf("error deleting feed from database: %w", err)
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
 		panic(fmt.Errorf("database driver not support rows affected to check if feed exists: %w", err))
 	} else if n == 0 {
-		return ErrFeedNotExists{}
+		return nil, ErrFeedNotExists{}
 	}
 
 	log.Infof("deleted feed %s from database successfully", feedId)
 
-	return nil
+	return tx, nil
 }
