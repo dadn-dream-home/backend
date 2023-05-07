@@ -2,20 +2,32 @@ package state
 
 import (
 	"context"
-	"database/sql"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang"
+	pb "github.com/dadn-dream-home/x/protobuf"
 )
 
 type State interface {
-	MQTT() mqtt.Client
-	DB() *sql.DB
-	PubSub() PubSub
+	PubSubValues() PubSubValues
+	PubSubFeeds() PubSubFeeds
+	Repository() Repository
 }
 
-type PubSub interface {
-	Subscribe(ctx context.Context, feed string, id string, ch chan<- []byte) (done <-chan struct{}, err error)
+type PubSubValues interface {
+	Subscribe(ctx context.Context, feed string, subid string, ch chan<- []byte) (done <-chan struct{}, err error)
 	Unsubscribe(ctx context.Context, feed string, id string) error
-	AddFeed(ctx context.Context, feed string) error
-	RemoveFeed(ctx context.Context, feed string) error
+	Publish(ctx context.Context, feed string, id string, value []byte) error
+}
+
+type PubSubFeeds interface {
+	Subscribe(ctx context.Context, id string, ch chan<- *pb.FeedsChange) (done <-chan struct{}, err error)
+	Unsubscribe(ctx context.Context, id string) error
+	CreateFeed(ctx context.Context, feed *pb.Feed) error
+	DeleteFeed(ctx context.Context, feed string) error
+}
+
+type Repository interface {
+	CreateFeed(ctx context.Context, feed *pb.Feed) error
+	GetFeed(ctx context.Context, id string) (*pb.Feed, error)
+	ListFeeds(ctx context.Context) ([]*pb.Feed, error)
+	DeleteFeed(ctx context.Context, id string) error
 }

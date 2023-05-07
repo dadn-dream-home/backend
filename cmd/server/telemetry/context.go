@@ -13,11 +13,11 @@ const (
 	RequestIdKey
 )
 
-func GetLogger(ctx context.Context) logrus.FieldLogger {
-	return ctx.Value(LoggerKey).(logrus.FieldLogger)
+func GetLogger(ctx context.Context) *logrus.Entry {
+	return ctx.Value(LoggerKey).(*logrus.Entry)
 }
 
-func ContextWithLogger(ctx context.Context, logger logrus.FieldLogger) context.Context {
+func ContextWithLogger(ctx context.Context, logger *logrus.Entry) context.Context {
 	return context.WithValue(ctx, LoggerKey, logger)
 }
 

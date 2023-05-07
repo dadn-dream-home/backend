@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net"
 	"reflect"
@@ -11,7 +10,6 @@ import (
 	"github.com/dadn-dream-home/x/server/interceptors"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -21,37 +19,32 @@ import (
 type BackendService struct {
 	pb.UnsafeBackendServiceServer
 
-	handlers.ListFeedsHandler
 	handlers.CreateFeedHandler
 	handlers.DeleteFeedHandler
 	handlers.StreamActuatorStatesHandler
 	handlers.StreamSensorValuesHandler
+	handlers.StreamFeedsChangesHandler
 
-	mqtt   mqtt.Client
-	db     *sql.DB
-	pubSub state.PubSub
+	pubSubValues state.PubSubValues
+	pubSubFeeds  state.PubSubFeeds
+	repository   state.Repository
 }
 
 var _ state.State = (*BackendService)(nil)
 
-func NewBackendService(ctx context.Context) (*BackendService, error) {
-	service := &BackendService{}
+func NewBackendService(ctx context.Context) (service *BackendService, err error) {
+	service = &BackendService{}
 
-	mqtt, err := NewMQTTClient(ctx)
+	service.repository, err = NewRepository(ctx, service)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to mqtt broker: %w", err)
+		return nil, err
 	}
-	service.mqtt = mqtt
 
-	db, err := NewDatabase()
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-	service.db = db
+	service.pubSubFeeds = NewPubSubFeeds(ctx, service)
 
-	service.pubSub, err = NewPubSub(ctx, service)
+	service.pubSubValues, err = NewPubSubValues(ctx, service)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create pubsub: %w", err)
+		return nil, err
 	}
 
 	// Inject dependencies into handlers, basically:
@@ -62,11 +55,11 @@ func NewBackendService(ctx context.Context) (*BackendService, error) {
 
 	serviceValue := reflect.ValueOf(service)
 	for _, handlerType := range []reflect.Type{
-		reflect.TypeOf(service.ListFeedsHandler),
 		reflect.TypeOf(service.CreateFeedHandler),
 		reflect.TypeOf(service.DeleteFeedHandler),
 		reflect.TypeOf(service.StreamActuatorStatesHandler),
 		reflect.TypeOf(service.StreamSensorValuesHandler),
+		reflect.TypeOf(service.StreamFeedsChangesHandler),
 	} {
 		serviceHandlerValue := serviceValue.Elem().FieldByName(handlerType.Name())
 		handlerValue := reflect.New(handlerType)
@@ -77,16 +70,16 @@ func NewBackendService(ctx context.Context) (*BackendService, error) {
 	return service, nil
 }
 
-func (s *BackendService) MQTT() mqtt.Client {
-	return s.mqtt
+func (s *BackendService) PubSubFeeds() state.PubSubFeeds {
+	return s.pubSubFeeds
 }
 
-func (s *BackendService) DB() *sql.DB {
-	return s.db
+func (s *BackendService) PubSubValues() state.PubSubValues {
+	return s.pubSubValues
 }
 
-func (s *BackendService) PubSub() state.PubSub {
-	return s.pubSub
+func (s *BackendService) Repository() state.Repository {
+	return s.repository
 }
 
 func (s *BackendService) Serve(ctx context.Context) {

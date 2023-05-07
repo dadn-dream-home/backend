@@ -18,7 +18,7 @@ func (s StreamActuatorStatesHandler) StreamActuatorStates(req *pb.StreamActuator
 	rid := telemetry.GetRequestId(ctx)
 	log := telemetry.GetLogger(ctx).WithField("feed_id", req.Id)
 
-	feed, err := getFeedFromDatabase(ctx, s, req.Id)
+	feed, err := s.Repository().GetFeed(ctx, req.Id)
 	if err != nil {
 		return status.Errorf(codes.Internal, err.Error())
 	}
@@ -31,7 +31,7 @@ func (s StreamActuatorStatesHandler) StreamActuatorStates(req *pb.StreamActuator
 	}
 
 	ch := make(chan []byte)
-	done, err := s.PubSub().Subscribe(ctx, req.Id, rid, ch)
+	done, err := s.PubSubValues().Subscribe(ctx, req.Id, rid, ch)
 	if err != nil {
 		return err
 	}
@@ -42,10 +42,11 @@ func (s StreamActuatorStatesHandler) StreamActuatorStates(req *pb.StreamActuator
 		select {
 		case <-stream.Context().Done():
 			log.Tracef("<-stream.Context().Done()")
-			err := s.PubSub().Unsubscribe(ctx, req.Id, rid)
+			err := s.PubSubValues().Unsubscribe(ctx, req.Id, rid)
 			if err != nil {
 				log.WithError(err).Warnf("error unsubscribing from feed")
 			}
+			return status.Errorf(codes.Canceled, "stream canceled")
 			// wait until done is closed
 
 		case <-done:

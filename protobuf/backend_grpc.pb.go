@@ -24,7 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type BackendServiceClient interface {
 	StreamSensorValues(ctx context.Context, in *StreamSensorValuesRequest, opts ...grpc.CallOption) (BackendService_StreamSensorValuesClient, error)
 	StreamActuatorStates(ctx context.Context, in *StreamActuatorStatesRequest, opts ...grpc.CallOption) (BackendService_StreamActuatorStatesClient, error)
-	ListFeeds(ctx context.Context, in *ListFeedsRequest, opts ...grpc.CallOption) (*ListFeedsResponse, error)
+	StreamFeedsChanges(ctx context.Context, in *StreamFeedsChangesRequest, opts ...grpc.CallOption) (BackendService_StreamFeedsChangesClient, error)
 	CreateFeed(ctx context.Context, in *CreateFeedRequest, opts ...grpc.CallOption) (*CreateFeedResponse, error)
 	DeleteFeed(ctx context.Context, in *DeleteFeedRequest, opts ...grpc.CallOption) (*DeleteFeedResponse, error)
 }
@@ -101,13 +101,36 @@ func (x *backendServiceStreamActuatorStatesClient) Recv() (*StreamActuatorStates
 	return m, nil
 }
 
-func (c *backendServiceClient) ListFeeds(ctx context.Context, in *ListFeedsRequest, opts ...grpc.CallOption) (*ListFeedsResponse, error) {
-	out := new(ListFeedsResponse)
-	err := c.cc.Invoke(ctx, "/protobuf.BackendService/ListFeeds", in, out, opts...)
+func (c *backendServiceClient) StreamFeedsChanges(ctx context.Context, in *StreamFeedsChangesRequest, opts ...grpc.CallOption) (BackendService_StreamFeedsChangesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &BackendService_ServiceDesc.Streams[2], "/protobuf.BackendService/StreamFeedsChanges", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &backendServiceStreamFeedsChangesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type BackendService_StreamFeedsChangesClient interface {
+	Recv() (*StreamFeedsChangesResponse, error)
+	grpc.ClientStream
+}
+
+type backendServiceStreamFeedsChangesClient struct {
+	grpc.ClientStream
+}
+
+func (x *backendServiceStreamFeedsChangesClient) Recv() (*StreamFeedsChangesResponse, error) {
+	m := new(StreamFeedsChangesResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *backendServiceClient) CreateFeed(ctx context.Context, in *CreateFeedRequest, opts ...grpc.CallOption) (*CreateFeedResponse, error) {
@@ -134,7 +157,7 @@ func (c *backendServiceClient) DeleteFeed(ctx context.Context, in *DeleteFeedReq
 type BackendServiceServer interface {
 	StreamSensorValues(*StreamSensorValuesRequest, BackendService_StreamSensorValuesServer) error
 	StreamActuatorStates(*StreamActuatorStatesRequest, BackendService_StreamActuatorStatesServer) error
-	ListFeeds(context.Context, *ListFeedsRequest) (*ListFeedsResponse, error)
+	StreamFeedsChanges(*StreamFeedsChangesRequest, BackendService_StreamFeedsChangesServer) error
 	CreateFeed(context.Context, *CreateFeedRequest) (*CreateFeedResponse, error)
 	DeleteFeed(context.Context, *DeleteFeedRequest) (*DeleteFeedResponse, error)
 	mustEmbedUnimplementedBackendServiceServer()
@@ -150,8 +173,8 @@ func (UnimplementedBackendServiceServer) StreamSensorValues(*StreamSensorValuesR
 func (UnimplementedBackendServiceServer) StreamActuatorStates(*StreamActuatorStatesRequest, BackendService_StreamActuatorStatesServer) error {
 	return status.Errorf(codes.Unimplemented, "method StreamActuatorStates not implemented")
 }
-func (UnimplementedBackendServiceServer) ListFeeds(context.Context, *ListFeedsRequest) (*ListFeedsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListFeeds not implemented")
+func (UnimplementedBackendServiceServer) StreamFeedsChanges(*StreamFeedsChangesRequest, BackendService_StreamFeedsChangesServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamFeedsChanges not implemented")
 }
 func (UnimplementedBackendServiceServer) CreateFeed(context.Context, *CreateFeedRequest) (*CreateFeedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateFeed not implemented")
@@ -214,22 +237,25 @@ func (x *backendServiceStreamActuatorStatesServer) Send(m *StreamActuatorStatesR
 	return x.ServerStream.SendMsg(m)
 }
 
-func _BackendService_ListFeeds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListFeedsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _BackendService_StreamFeedsChanges_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(StreamFeedsChangesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(BackendServiceServer).ListFeeds(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protobuf.BackendService/ListFeeds",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BackendServiceServer).ListFeeds(ctx, req.(*ListFeedsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(BackendServiceServer).StreamFeedsChanges(m, &backendServiceStreamFeedsChangesServer{stream})
+}
+
+type BackendService_StreamFeedsChangesServer interface {
+	Send(*StreamFeedsChangesResponse) error
+	grpc.ServerStream
+}
+
+type backendServiceStreamFeedsChangesServer struct {
+	grpc.ServerStream
+}
+
+func (x *backendServiceStreamFeedsChangesServer) Send(m *StreamFeedsChangesResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _BackendService_CreateFeed_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -276,10 +302,6 @@ var BackendService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*BackendServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListFeeds",
-			Handler:    _BackendService_ListFeeds_Handler,
-		},
-		{
 			MethodName: "CreateFeed",
 			Handler:    _BackendService_CreateFeed_Handler,
 		},
@@ -297,6 +319,11 @@ var BackendService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "StreamActuatorStates",
 			Handler:       _BackendService_StreamActuatorStates_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "StreamFeedsChanges",
+			Handler:       _BackendService_StreamFeedsChanges_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -29,5 +29,5 @@ func InitLogger(ctx context.Context) context.Context {
 		},
 	})
 	log.SetReportCaller(true)
-	return ContextWithLogger(ctx, log)
+	return ContextWithLogger(ctx, log.WithContext(ctx))
 }

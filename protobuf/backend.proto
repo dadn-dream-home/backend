@@ -11,7 +11,8 @@ service BackendService {
   rpc StreamActuatorStates(StreamActuatorStatesRequest)
       returns (stream StreamActuatorStatesResponse);
 
-  rpc ListFeeds(ListFeedsRequest) returns (ListFeedsResponse);
+  rpc StreamFeedsChanges(StreamFeedsChangesRequest)
+      returns (stream StreamFeedsChangesResponse);
 
   rpc CreateFeed(CreateFeedRequest) returns (CreateFeedResponse);
 
@@ -26,19 +27,20 @@ message StreamActuatorStatesRequest { string id = 1; }
 
 message StreamActuatorStatesResponse { bool state = 1; }
 
-message ListFeedsRequest {}
+message StreamFeedsChangesRequest {}
 
-message ListFeedsResponse { repeated Feed feeds = 1; }
+message StreamFeedsChangesResponse { FeedsChange change = 1; }
+
+message FeedsChange {
+  repeated Feed added = 1;
+  repeated string removed = 2;
+}
 
 message CreateFeedRequest {
-  string id = 1;
-  FeedType type = 2;
+  Feed feed = 1;
 }
 
-message CreateFeedResponse {
-  string id = 1;
-  FeedType type = 2;
-}
+message CreateFeedResponse {}
 
 message DeleteFeedRequest { string id = 1; }
 

@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"sync"
 
+	pb "github.com/dadn-dream-home/x/protobuf"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-type pubSub struct {
+type pubSubValues struct {
 	sync.RWMutex
+
 	state.State
+	mqtt mqtt.Client
 
 	subscribers map[string][]subscriber
 }
@@ -23,35 +26,59 @@ type subscriber struct {
 	done chan struct{}
 }
 
-var _ state.PubSub = (*pubSub)(nil)
+func NewPubSubValues(ctx context.Context, state state.State) (state.PubSubValues, error) {
+	mqtt, err := NewMQTTClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to mqtt broker: %w", err)
+	}
 
-func NewPubSub(ctx context.Context, state state.State) (state.PubSub, error) {
-	ps := &pubSub{
+	ps := &pubSubValues{
 		State:       state,
+		mqtt:        mqtt,
 		subscribers: make(map[string][]subscriber),
 	}
 
-	// add initial feeds to pubsub
-	rows, err := state.DB().Query("SELECT id from feeds")
-	if err != nil {
-		return nil, fmt.Errorf("error querying feeds: %w", err)
-	}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-
-		ps.AddFeed(ctx, id)
-	}
+	go ps.ListenToFeedsChanges(ctx)
 
 	return ps, nil
 }
 
-func (p *pubSub) Subscribe(ctx context.Context, feed string, id string, ch chan<- []byte) (<-chan struct{}, error) {
+func (p *pubSubValues) ListenToFeedsChanges(ctx context.Context) {
+	log := telemetry.GetLogger(ctx)
+
+	ch := make(chan *pb.FeedsChange)
+	done, err := p.PubSubFeeds().Subscribe(ctx, "pub-sub-values", ch)
+	if err != nil {
+		log.Fatalf("failed to subscribe to pubsub feeds: %v", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Infof("context cancelled")
+			return
+		case <-done:
+			log.Infof("done")
+			return
+		case change := <-ch:
+			for _, feed := range change.Added {
+				if err := p.AddFeed(ctx, feed.Id); err != nil {
+					log.Fatalf("failed to add feed %s: %v", feed, err)
+				}
+			}
+			for _, feed := range change.Removed {
+				if err := p.RemoveFeed(ctx, feed); err != nil {
+					log.Fatalf("failed to remove feed %s: %v", feed, err)
+				}
+			}
+		}
+	}
+}
+
+func (p *pubSubValues) Subscribe(ctx context.Context, feed string, id string, ch chan<- []byte) (<-chan struct{}, error) {
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
-	if !p.HasFeed(ctx, feed) {
+	if !p.hasFeed(ctx, feed) {
 		return nil, fmt.Errorf("feed %s not found", feed)
 	}
 
@@ -69,17 +96,17 @@ func (p *pubSub) Subscribe(ctx context.Context, feed string, id string, ch chan<
 	return subscriber.done, nil
 }
 
-func (p *pubSub) HasFeed(ctx context.Context, feed string) bool {
+func (p *pubSubValues) hasFeed(ctx context.Context, feed string) bool {
 	p.RLock()
 	defer p.RUnlock()
 	_, ok := p.subscribers[feed]
 	return ok
 }
 
-func (p *pubSub) Unsubscribe(ctx context.Context, feed string, id string) error {
+func (p *pubSubValues) Unsubscribe(ctx context.Context, feed string, id string) error {
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
-	if !p.HasFeed(ctx, feed) {
+	if !p.hasFeed(ctx, feed) {
 		return fmt.Errorf("feed %s not found", feed)
 	}
 
@@ -112,14 +139,14 @@ func (p *pubSub) Unsubscribe(ctx context.Context, feed string, id string) error 
 }
 
 // AddFeed subscribes to the MQTT feed
-func (p *pubSub) AddFeed(ctx context.Context, feed string) error {
+func (p *pubSubValues) AddFeed(ctx context.Context, feed string) error {
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
-	if p.HasFeed(ctx, feed) {
+	if p.hasFeed(ctx, feed) {
 		return fmt.Errorf("feed %s already added to pubsub", feed)
 	}
 
-	if token := p.MQTT().Subscribe(feed, 0, p.MessageHandler(ctx)); token.Wait() && token.Error() != nil {
+	if token := p.mqtt.Subscribe(feed, 0, p.MessageHandler(ctx)); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to feed %s: %w", feed, token.Error())
 	}
 
@@ -132,7 +159,7 @@ func (p *pubSub) AddFeed(ctx context.Context, feed string) error {
 	return nil
 }
 
-func (p *pubSub) MessageHandler(ctx context.Context) mqtt.MessageHandler {
+func (p *pubSubValues) MessageHandler(ctx context.Context) mqtt.MessageHandler {
 	return func(client mqtt.Client, msg mqtt.Message) {
 		log := telemetry.GetLogger(ctx).WithField("feed", msg.Topic())
 
@@ -157,10 +184,10 @@ func (p *pubSub) MessageHandler(ctx context.Context) mqtt.MessageHandler {
 	}
 }
 
-func (p *pubSub) RemoveFeed(ctx context.Context, feed string) error {
+func (p *pubSubValues) RemoveFeed(ctx context.Context, feed string) error {
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
-	if token := p.MQTT().Unsubscribe(feed); token.Wait() && token.Error() != nil {
+	if token := p.mqtt.Unsubscribe(feed); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to unsubscribe from feed %s: %w", feed, token.Error())
 	}
 
@@ -177,6 +204,20 @@ func (p *pubSub) RemoveFeed(ctx context.Context, feed string) error {
 	}
 
 	log.Infof("removed feed from pubsub")
+
+	return nil
+}
+
+func (p *pubSubValues) Publish(ctx context.Context, id string, feed string, value []byte) error {
+	log := telemetry.GetLogger(ctx).WithField("publisher_id", id).WithField("feed", feed)
+
+	log.Debugf("publishing to feed")
+
+	if token := p.mqtt.Publish(feed, 0, false, value); token.Wait() && token.Error() != nil {
+		return fmt.Errorf("failed to publish to feed %s: %w", feed, token.Error())
+	}
+
+	log.Infof("published to feed")
 
 	return nil
 }
