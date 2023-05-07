@@ -15,7 +15,7 @@ type StreamSensorValuesHandler struct {
 	state.State
 }
 
-func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamFeedValuesRequest, stream pb.BackendService_StreamSensorValuesServer) error {
+func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamSensorValuesRequest, stream pb.BackendService_StreamSensorValuesServer) error {
 	ctx := stream.Context()
 	rid := telemetry.GetRequestId(ctx)
 	log := telemetry.GetLogger(ctx).WithField("feed_id", req.Id)
@@ -60,7 +60,7 @@ func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamFeedValuesRe
 				log.WithError(err).Warnf("error parsing float %s: %w", string(msg))
 				continue
 			}
-			err = stream.Send(&pb.StreamFeedValuesResponse{
+			err = stream.Send(&pb.StreamSensorValuesResponse{
 				Value: float32(value),
 			})
 			if err != nil {

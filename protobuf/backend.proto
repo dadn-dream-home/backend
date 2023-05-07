@@ -5,8 +5,8 @@ option go_package = "github.com/dadn-dream-home/x/protobuf";
 package protobuf;
 
 service BackendService {
-  rpc StreamSensorValues(StreamFeedValuesRequest)
-      returns (stream StreamFeedValuesResponse);
+  rpc StreamSensorValues(StreamSensorValuesRequest)
+      returns (stream StreamSensorValuesResponse);
 
   rpc StreamActuatorStates(StreamActuatorStatesRequest)
       returns (stream StreamActuatorStatesResponse);
@@ -18,9 +18,9 @@ service BackendService {
   rpc DeleteFeed(DeleteFeedRequest) returns (DeleteFeedResponse);
 }
 
-message StreamFeedValuesRequest { string id = 1; }
+message StreamSensorValuesRequest { string id = 1; }
 
-message StreamFeedValuesResponse { float value = 1; }
+message StreamSensorValuesResponse { float value = 1; }
 
 message StreamActuatorStatesRequest { string id = 1; }
 

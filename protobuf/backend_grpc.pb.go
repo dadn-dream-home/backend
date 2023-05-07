@@ -22,7 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BackendServiceClient interface {
-	StreamSensorValues(ctx context.Context, in *StreamFeedValuesRequest, opts ...grpc.CallOption) (BackendService_StreamSensorValuesClient, error)
+	StreamSensorValues(ctx context.Context, in *StreamSensorValuesRequest, opts ...grpc.CallOption) (BackendService_StreamSensorValuesClient, error)
 	StreamActuatorStates(ctx context.Context, in *StreamActuatorStatesRequest, opts ...grpc.CallOption) (BackendService_StreamActuatorStatesClient, error)
 	ListFeeds(ctx context.Context, in *ListFeedsRequest, opts ...grpc.CallOption) (*ListFeedsResponse, error)
 	CreateFeed(ctx context.Context, in *CreateFeedRequest, opts ...grpc.CallOption) (*CreateFeedResponse, error)
@@ -37,7 +37,7 @@ func NewBackendServiceClient(cc grpc.ClientConnInterface) BackendServiceClient {
 	return &backendServiceClient{cc}
 }
 
-func (c *backendServiceClient) StreamSensorValues(ctx context.Context, in *StreamFeedValuesRequest, opts ...grpc.CallOption) (BackendService_StreamSensorValuesClient, error) {
+func (c *backendServiceClient) StreamSensorValues(ctx context.Context, in *StreamSensorValuesRequest, opts ...grpc.CallOption) (BackendService_StreamSensorValuesClient, error) {
 	stream, err := c.cc.NewStream(ctx, &BackendService_ServiceDesc.Streams[0], "/protobuf.BackendService/StreamSensorValues", opts...)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (c *backendServiceClient) StreamSensorValues(ctx context.Context, in *Strea
 }
 
 type BackendService_StreamSensorValuesClient interface {
-	Recv() (*StreamFeedValuesResponse, error)
+	Recv() (*StreamSensorValuesResponse, error)
 	grpc.ClientStream
 }
 
@@ -61,8 +61,8 @@ type backendServiceStreamSensorValuesClient struct {
 	grpc.ClientStream
 }
 
-func (x *backendServiceStreamSensorValuesClient) Recv() (*StreamFeedValuesResponse, error) {
-	m := new(StreamFeedValuesResponse)
+func (x *backendServiceStreamSensorValuesClient) Recv() (*StreamSensorValuesResponse, error) {
+	m := new(StreamSensorValuesResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (c *backendServiceClient) DeleteFeed(ctx context.Context, in *DeleteFeedReq
 // All implementations must embed UnimplementedBackendServiceServer
 // for forward compatibility
 type BackendServiceServer interface {
-	StreamSensorValues(*StreamFeedValuesRequest, BackendService_StreamSensorValuesServer) error
+	StreamSensorValues(*StreamSensorValuesRequest, BackendService_StreamSensorValuesServer) error
 	StreamActuatorStates(*StreamActuatorStatesRequest, BackendService_StreamActuatorStatesServer) error
 	ListFeeds(context.Context, *ListFeedsRequest) (*ListFeedsResponse, error)
 	CreateFeed(context.Context, *CreateFeedRequest) (*CreateFeedResponse, error)
@@ -144,7 +144,7 @@ type BackendServiceServer interface {
 type UnimplementedBackendServiceServer struct {
 }
 
-func (UnimplementedBackendServiceServer) StreamSensorValues(*StreamFeedValuesRequest, BackendService_StreamSensorValuesServer) error {
+func (UnimplementedBackendServiceServer) StreamSensorValues(*StreamSensorValuesRequest, BackendService_StreamSensorValuesServer) error {
 	return status.Errorf(codes.Unimplemented, "method StreamSensorValues not implemented")
 }
 func (UnimplementedBackendServiceServer) StreamActuatorStates(*StreamActuatorStatesRequest, BackendService_StreamActuatorStatesServer) error {
@@ -173,7 +173,7 @@ func RegisterBackendServiceServer(s grpc.ServiceRegistrar, srv BackendServiceSer
 }
 
 func _BackendService_StreamSensorValues_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(StreamFeedValuesRequest)
+	m := new(StreamSensorValuesRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func _BackendService_StreamSensorValues_Handler(srv interface{}, stream grpc.Ser
 }
 
 type BackendService_StreamSensorValuesServer interface {
-	Send(*StreamFeedValuesResponse) error
+	Send(*StreamSensorValuesResponse) error
 	grpc.ServerStream
 }
 
@@ -189,7 +189,7 @@ type backendServiceStreamSensorValuesServer struct {
 	grpc.ServerStream
 }
 
-func (x *backendServiceStreamSensorValuesServer) Send(m *StreamFeedValuesResponse) error {
+func (x *backendServiceStreamSensorValuesServer) Send(m *StreamSensorValuesResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
