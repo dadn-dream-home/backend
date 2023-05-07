@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"os"
 	"path"
 	"runtime"
 	"strconv"
@@ -11,7 +12,13 @@ import (
 
 func InitLogger(ctx context.Context) context.Context {
 	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
+
+	if level, err := logrus.ParseLevel(os.Getenv("GO_LOG")); err == nil {
+		log.SetLevel(level)
+	} else {
+		log.SetLevel(logrus.DebugLevel)
+	}
+
 	log.SetFormatter(&logrus.TextFormatter{
 		ForceColors:   true,
 		FullTimestamp: false,
