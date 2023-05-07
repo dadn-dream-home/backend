@@ -17,6 +17,8 @@ service BackendService {
   rpc CreateFeed(CreateFeedRequest) returns (CreateFeedResponse);
 
   rpc DeleteFeed(DeleteFeedRequest) returns (DeleteFeedResponse);
+
+  rpc SetActuatorState(SetActuatorStateRequest) returns (SetActuatorStateResponse);
 }
 
 message StreamSensorValuesRequest { string id = 1; }
@@ -45,6 +47,13 @@ message CreateFeedResponse {}
 message DeleteFeedRequest { string id = 1; }
 
 message DeleteFeedResponse {}
+
+message SetActuatorStateRequest {
+  Feed feed = 1;
+  bool state = 2;
+}
+
+message SetActuatorStateResponse {}
 
 // data types
 

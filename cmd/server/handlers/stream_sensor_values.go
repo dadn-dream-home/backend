@@ -33,7 +33,7 @@ func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamSensorValues
 	}
 
 	ch := make(chan []byte)
-	done, err := s.PubSubValues().Subscribe(ctx, req.Id, rid, ch)
+	done, err := s.PubSubValues().Subscribe(ctx, rid, req.Id, ch)
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamSensorValues
 		select {
 		case <-stream.Context().Done():
 			log.Tracef("<-stream.Context().Done()")
-			err := s.PubSubValues().Unsubscribe(ctx, req.Id, rid)
+			err := s.PubSubValues().Unsubscribe(ctx, rid, req.Id)
 			if err != nil {
 				log.WithError(err).Warnf("error unsubscribing from feed")
 			}

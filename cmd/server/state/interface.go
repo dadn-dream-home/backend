@@ -13,16 +13,16 @@ type State interface {
 }
 
 type PubSubValues interface {
-	Subscribe(ctx context.Context, feed string, subid string, ch chan<- []byte) (done <-chan struct{}, err error)
-	Unsubscribe(ctx context.Context, feed string, id string) error
-	Publish(ctx context.Context, feed string, id string, value []byte) error
+	Subscribe(ctx context.Context, sid string, feed string, ch chan<- []byte) (done <-chan struct{}, err error)
+	Unsubscribe(ctx context.Context, sid string, feed string) error
+	Publish(ctx context.Context, sid string, feed string, value []byte) error
 }
 
 type PubSubFeeds interface {
-	Subscribe(ctx context.Context, id string, ch chan<- *pb.FeedsChange) (done <-chan struct{}, err error)
-	Unsubscribe(ctx context.Context, id string) error
-	CreateFeed(ctx context.Context, feed *pb.Feed) error
-	DeleteFeed(ctx context.Context, feed string) error
+	Subscribe(ctx context.Context, sid string, ch chan<- *pb.FeedsChange) (done <-chan struct{}, err error)
+	Unsubscribe(ctx context.Context, sid string) error
+	CreateFeed(ctx context.Context, sid string, feed *pb.Feed) error
+	DeleteFeed(ctx context.Context, sid string, feed string) error
 }
 
 type Repository interface {

@@ -14,12 +14,13 @@ type CreateFeedHandler struct {
 }
 
 func (h CreateFeedHandler) CreateFeed(ctx context.Context, req *pb.CreateFeedRequest) (res *pb.CreateFeedResponse, err error) {
-	log := telemetry.GetLogger(ctx)
-	log = log.WithField("feed_id", req.Feed.Id)
-	log = log.WithField("feed_type", req.Feed.Type)
+	log := telemetry.GetLogger(ctx).
+		WithField("feed_id", req.Feed.Id).
+		WithField("feed_type", req.Feed.Type)
 	ctx = telemetry.ContextWithLogger(ctx, log)
+	rid := telemetry.GetRequestId(ctx)
 
-	err = h.PubSubFeeds().CreateFeed(ctx, req.Feed)
+	err = h.PubSubFeeds().CreateFeed(ctx, rid, req.Feed)
 	if err != nil {
 		log.WithError(err).Errorf("error creating feed")
 		return nil, err

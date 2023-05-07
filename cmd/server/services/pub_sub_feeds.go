@@ -74,7 +74,9 @@ func (p *pubSubFeeds) Unsubscribe(ctx context.Context, id string) error {
 	return nil
 }
 
-func (p *pubSubFeeds) CreateFeed(ctx context.Context, feed *pb.Feed) error {
+func (p *pubSubFeeds) CreateFeed(ctx context.Context, id string, feed *pb.Feed) error {
+	log := telemetry.GetLogger(ctx).WithField("id", id).WithField("feed", feed)
+
 	err := p.Repository().CreateFeed(ctx, feed)
 	if err != nil {
 		return fmt.Errorf("failed to create feed: %w", err)
@@ -88,10 +90,14 @@ func (p *pubSubFeeds) CreateFeed(ctx context.Context, feed *pb.Feed) error {
 	}
 	p.RUnlock()
 
+	log.Infof("created feed")
+
 	return nil
 }
 
-func (p *pubSubFeeds) DeleteFeed(ctx context.Context, feed string) error {
+func (p *pubSubFeeds) DeleteFeed(ctx context.Context, id string, feed string) error {
+	log := telemetry.GetLogger(ctx).WithField("id", id).WithField("feed", feed)
+
 	err := p.Repository().DeleteFeed(ctx, feed)
 	if err != nil {
 		return fmt.Errorf("failed to delete feed: %w", err)
@@ -104,6 +110,8 @@ func (p *pubSubFeeds) DeleteFeed(ctx context.Context, feed string) error {
 		}
 	}
 	p.RUnlock()
+
+	log.Infof("deleted feed")
 
 	return nil
 }

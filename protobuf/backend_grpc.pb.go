@@ -27,6 +27,7 @@ type BackendServiceClient interface {
 	StreamFeedsChanges(ctx context.Context, in *StreamFeedsChangesRequest, opts ...grpc.CallOption) (BackendService_StreamFeedsChangesClient, error)
 	CreateFeed(ctx context.Context, in *CreateFeedRequest, opts ...grpc.CallOption) (*CreateFeedResponse, error)
 	DeleteFeed(ctx context.Context, in *DeleteFeedRequest, opts ...grpc.CallOption) (*DeleteFeedResponse, error)
+	SetActuatorState(ctx context.Context, in *SetActuatorStateRequest, opts ...grpc.CallOption) (*SetActuatorStateResponse, error)
 }
 
 type backendServiceClient struct {
@@ -151,6 +152,15 @@ func (c *backendServiceClient) DeleteFeed(ctx context.Context, in *DeleteFeedReq
 	return out, nil
 }
 
+func (c *backendServiceClient) SetActuatorState(ctx context.Context, in *SetActuatorStateRequest, opts ...grpc.CallOption) (*SetActuatorStateResponse, error) {
+	out := new(SetActuatorStateResponse)
+	err := c.cc.Invoke(ctx, "/protobuf.BackendService/SetActuatorState", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BackendServiceServer is the server API for BackendService service.
 // All implementations must embed UnimplementedBackendServiceServer
 // for forward compatibility
@@ -160,6 +170,7 @@ type BackendServiceServer interface {
 	StreamFeedsChanges(*StreamFeedsChangesRequest, BackendService_StreamFeedsChangesServer) error
 	CreateFeed(context.Context, *CreateFeedRequest) (*CreateFeedResponse, error)
 	DeleteFeed(context.Context, *DeleteFeedRequest) (*DeleteFeedResponse, error)
+	SetActuatorState(context.Context, *SetActuatorStateRequest) (*SetActuatorStateResponse, error)
 	mustEmbedUnimplementedBackendServiceServer()
 }
 
@@ -181,6 +192,9 @@ func (UnimplementedBackendServiceServer) CreateFeed(context.Context, *CreateFeed
 }
 func (UnimplementedBackendServiceServer) DeleteFeed(context.Context, *DeleteFeedRequest) (*DeleteFeedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteFeed not implemented")
+}
+func (UnimplementedBackendServiceServer) SetActuatorState(context.Context, *SetActuatorStateRequest) (*SetActuatorStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetActuatorState not implemented")
 }
 func (UnimplementedBackendServiceServer) mustEmbedUnimplementedBackendServiceServer() {}
 
@@ -294,6 +308,24 @@ func _BackendService_DeleteFeed_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BackendService_SetActuatorState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetActuatorStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BackendServiceServer).SetActuatorState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protobuf.BackendService/SetActuatorState",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BackendServiceServer).SetActuatorState(ctx, req.(*SetActuatorStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BackendService_ServiceDesc is the grpc.ServiceDesc for BackendService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -308,6 +340,10 @@ var BackendService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteFeed",
 			Handler:    _BackendService_DeleteFeed_Handler,
+		},
+		{
+			MethodName: "SetActuatorState",
+			Handler:    _BackendService_SetActuatorState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

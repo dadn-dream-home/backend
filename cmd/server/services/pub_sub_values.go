@@ -75,7 +75,7 @@ func (p *pubSubValues) ListenToFeedsChanges(ctx context.Context) {
 	}
 }
 
-func (p *pubSubValues) Subscribe(ctx context.Context, feed string, id string, ch chan<- []byte) (<-chan struct{}, error) {
+func (p *pubSubValues) Subscribe(ctx context.Context, id string, feed string, ch chan<- []byte) (<-chan struct{}, error) {
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
 	if !p.hasFeed(ctx, feed) {
@@ -103,7 +103,7 @@ func (p *pubSubValues) hasFeed(ctx context.Context, feed string) bool {
 	return ok
 }
 
-func (p *pubSubValues) Unsubscribe(ctx context.Context, feed string, id string) error {
+func (p *pubSubValues) Unsubscribe(ctx context.Context, id string, feed string) error {
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
 	if !p.hasFeed(ctx, feed) {
@@ -146,7 +146,9 @@ func (p *pubSubValues) AddFeed(ctx context.Context, feed string) error {
 		return fmt.Errorf("feed %s already added to pubsub", feed)
 	}
 
-	if token := p.mqtt.Subscribe(feed, 0, p.MessageHandler(ctx)); token.Wait() && token.Error() != nil {
+	if token := p.mqtt.Subscribe(feed, 0, func(c mqtt.Client, m mqtt.Message) {
+		p.Notify(ctx, feed, m.Payload())
+	}); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to feed %s: %w", feed, token.Error())
 	}
 
@@ -159,29 +161,27 @@ func (p *pubSubValues) AddFeed(ctx context.Context, feed string) error {
 	return nil
 }
 
-func (p *pubSubValues) MessageHandler(ctx context.Context) mqtt.MessageHandler {
-	return func(client mqtt.Client, msg mqtt.Message) {
-		log := telemetry.GetLogger(ctx).WithField("feed", msg.Topic())
+func (p *pubSubValues) Notify(ctx context.Context, feed string, payload []byte) {
+	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
-		log.Infof("received message")
+	log.Infof("received message")
 
-		p.RLock()
-		log.Tracef("acquired read lock")
+	p.RLock()
+	log.Tracef("acquired read lock")
 
-		for _, subscriber := range p.subscribers[msg.Topic()] {
+	for _, subscriber := range p.subscribers[feed] {
 
-			log := log.WithField("subscriber_id", subscriber.id)
-			log.Tracef("forwarding message to subscriber")
+		log := log.WithField("subscriber_id", subscriber.id)
+		log.Tracef("forwarding message to subscriber")
 
-			subscriber.ch <- msg.Payload()
+		subscriber.ch <- payload
 
-			log.Infof("forwarded message to subscriber")
-		}
-		p.RUnlock()
-
-		log.WithField("subscribers", len(p.subscribers[msg.Topic()])).
-			Infof("forwarded message to subscribers")
+		log.Infof("notified subscriber")
 	}
+	p.RUnlock()
+
+	log.WithField("subscribers", len(p.subscribers[feed])).
+		Infof("notified subscribers")
 }
 
 func (p *pubSubValues) RemoveFeed(ctx context.Context, feed string) error {
@@ -216,6 +216,8 @@ func (p *pubSubValues) Publish(ctx context.Context, id string, feed string, valu
 	if token := p.mqtt.Publish(feed, 0, false, value); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to publish to feed %s: %w", feed, token.Error())
 	}
+
+	// mqtt will notify this pubsub instance of the published message
 
 	log.Infof("published to feed")
 

@@ -24,6 +24,7 @@ type BackendService struct {
 	handlers.StreamActuatorStatesHandler
 	handlers.StreamSensorValuesHandler
 	handlers.StreamFeedsChangesHandler
+	handlers.SetActuatorStateHandler
 
 	pubSubValues state.PubSubValues
 	pubSubFeeds  state.PubSubFeeds
@@ -60,6 +61,7 @@ func NewBackendService(ctx context.Context) (service *BackendService, err error)
 		reflect.TypeOf(service.StreamActuatorStatesHandler),
 		reflect.TypeOf(service.StreamSensorValuesHandler),
 		reflect.TypeOf(service.StreamFeedsChangesHandler),
+		reflect.TypeOf(service.SetActuatorStateHandler),
 	} {
 		serviceHandlerValue := serviceValue.Elem().FieldByName(handlerType.Name())
 		handlerValue := reflect.New(handlerType)
