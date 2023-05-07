@@ -20,8 +20,19 @@ func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamFeedValuesRe
 	rid := telemetry.GetRequestId(ctx)
 	log := telemetry.GetLogger(ctx).WithField("feed_id", req.Id)
 
-	ch := make(chan []byte)
+	feed, err := getFeedFromDatabase(ctx, s, req.Id)
+	if err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
 
+	switch feed.Type {
+	case pb.FeedType_TEMPERATURE, pb.FeedType_HUMIDITY:
+		// ok
+	default:
+		return status.Errorf(codes.InvalidArgument, "feed type %s is not sensor", feed.Type)
+	}
+
+	ch := make(chan []byte)
 	done, err := s.PubSub().Subscribe(ctx, req.Id, rid, ch)
 	if err != nil {
 		return err
