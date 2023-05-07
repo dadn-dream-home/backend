@@ -14,8 +14,8 @@ type State interface {
 }
 
 type PubSub interface {
-	Subscribe(ctx context.Context, feed string, ch chan<- []byte) error
-	Unsubscribe(ctx context.Context, feed string, ch chan<- []byte) error
+	Subscribe(ctx context.Context, feed string, id string, ch chan<- []byte) (done <-chan struct{}, err error)
+	Unsubscribe(ctx context.Context, feed string, id string) error
 	AddFeed(ctx context.Context, feed string) error
 	RemoveFeed(ctx context.Context, feed string) error
 }

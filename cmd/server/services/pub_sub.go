@@ -14,7 +14,13 @@ type pubSub struct {
 	sync.RWMutex
 	state.State
 
-	subscribers map[string][]chan<- []byte
+	subscribers map[string][]subscriber
+}
+
+type subscriber struct {
+	id   string
+	ch   chan<- []byte
+	done chan struct{}
 }
 
 var _ state.PubSub = (*pubSub)(nil)
@@ -22,7 +28,7 @@ var _ state.PubSub = (*pubSub)(nil)
 func NewPubSub(ctx context.Context, state state.State) (state.PubSub, error) {
 	ps := &pubSub{
 		State:       state,
-		subscribers: make(map[string][]chan<- []byte),
+		subscribers: make(map[string][]subscriber),
 	}
 
 	// add initial feeds to pubsub
@@ -42,20 +48,25 @@ func NewPubSub(ctx context.Context, state state.State) (state.PubSub, error) {
 	return ps, nil
 }
 
-func (p *pubSub) Subscribe(ctx context.Context, feed string, ch chan<- []byte) error {
+func (p *pubSub) Subscribe(ctx context.Context, feed string, id string, ch chan<- []byte) (<-chan struct{}, error) {
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
 	if !p.HasFeed(ctx, feed) {
-		return fmt.Errorf("feed %s not found", feed)
+		return nil, fmt.Errorf("feed %s not found", feed)
 	}
 
 	p.Lock()
-	p.subscribers[feed] = append(p.subscribers[feed], ch)
+	subscriber := subscriber{
+		id:   id,
+		ch:   ch,
+		done: make(chan struct{}, 1),
+	}
+	p.subscribers[feed] = append(p.subscribers[feed], subscriber)
 	p.Unlock()
 
 	log.Infof("subscribed to pubsub")
 
-	return nil
+	return subscriber.done, nil
 }
 
 func (p *pubSub) HasFeed(ctx context.Context, feed string) bool {
@@ -65,7 +76,7 @@ func (p *pubSub) HasFeed(ctx context.Context, feed string) bool {
 	return ok
 }
 
-func (p *pubSub) Unsubscribe(ctx context.Context, feed string, ch chan<- []byte) error {
+func (p *pubSub) Unsubscribe(ctx context.Context, feed string, id string) error {
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
 	if !p.HasFeed(ctx, feed) {
@@ -73,13 +84,22 @@ func (p *pubSub) Unsubscribe(ctx context.Context, feed string, ch chan<- []byte)
 	}
 
 	p.RLock()
+	log.Tracef("acquired read lock")
+
 	for i, subscriber := range p.subscribers[feed] {
-		if subscriber == ch {
+		if subscriber.id == id {
 			p.RUnlock()
+			log.Tracef("released read lock")
+
 			p.Lock()
+			log.Tracef("upgraded to write lock")
+
+			subscriber.done <- struct{}{}
 			p.subscribers[feed] = append(p.subscribers[feed][:i], p.subscribers[feed][i+1:]...)
-			close(subscriber)
+			close(subscriber.ch)
+
 			p.Unlock()
+			log.Tracef("released write lock")
 
 			log.Infof("unsubscribed from pubsub")
 
@@ -104,7 +124,7 @@ func (p *pubSub) AddFeed(ctx context.Context, feed string) error {
 	}
 
 	p.Lock()
-	p.subscribers[feed] = make([]chan<- []byte, 0)
+	p.subscribers[feed] = make([]subscriber, 0)
 	p.Unlock()
 
 	log.Infof("added feed to pubsub")
@@ -119,12 +139,21 @@ func (p *pubSub) MessageHandler(ctx context.Context) mqtt.MessageHandler {
 		log.Infof("received message")
 
 		p.RLock()
+		log.Tracef("acquired read lock")
+
 		for _, subscriber := range p.subscribers[msg.Topic()] {
-			subscriber <- msg.Payload()
+
+			log := log.WithField("subscriber_id", subscriber.id)
+			log.Tracef("forwarding message to subscriber")
+
+			subscriber.ch <- msg.Payload()
+
+			log.Infof("forwarded message to subscriber")
 		}
 		p.RUnlock()
 
-		log.WithField("subscribers", len(p.subscribers[msg.Topic()])).Infof("forwarded message to subscribers")
+		log.WithField("subscribers", len(p.subscribers[msg.Topic()])).
+			Infof("forwarded message to subscribers")
 	}
 }
 
@@ -137,7 +166,8 @@ func (p *pubSub) RemoveFeed(ctx context.Context, feed string) error {
 
 	p.Lock()
 	for _, subscriber := range p.subscribers[feed] {
-		close(subscriber)
+		subscriber.done <- struct{}{}
+		close(subscriber.ch)
 	}
 	delete(p.subscribers, feed)
 	p.Unlock()

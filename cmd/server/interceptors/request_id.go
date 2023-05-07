@@ -13,6 +13,7 @@ func RequestIdUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.
 	rid := uuid.New().String()[:6]
 	log := telemetry.GetLogger(ctx).WithField("rid", rid)
 	ctx = telemetry.ContextWithLogger(ctx, log)
+	ctx = telemetry.ContextWithRequestId(ctx, rid)
 
 	return handler(ctx, req)
 }
@@ -23,6 +24,7 @@ func RequestIdStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grp
 	rid := uuid.New().String()[:6]
 	log := telemetry.GetLogger(ctx).WithField("rid", rid)
 	ctx = telemetry.ContextWithLogger(ctx, log)
+	ctx = telemetry.ContextWithRequestId(ctx, rid)
 
 	return handler(srv, &serverStream{ss, ctx})
 }
