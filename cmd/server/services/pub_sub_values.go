@@ -93,6 +93,13 @@ func (p *pubSubValues) Subscribe(ctx context.Context, id string, feed string, ch
 
 	log.Infof("subscribed to pubsub")
 
+	// send initial value
+	go func() {
+		value, _ := p.Repository().GetFeedLatestValue(ctx, feed)
+		ch <- value
+		log.Infof("sent latest value")
+	}()
+
 	return subscriber.done, nil
 }
 
@@ -165,6 +172,11 @@ func (p *pubSubValues) Notify(ctx context.Context, feed string, payload []byte) 
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
 	log.Infof("received message")
+
+	err := p.Repository().InsertFeedValue(ctx, feed, payload)
+	if err != nil {
+		log.Errorf("failed to insert feed value: %w", err)
+	}
 
 	p.RLock()
 	log.Tracef("acquired read lock")

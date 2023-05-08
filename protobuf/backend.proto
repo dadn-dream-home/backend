@@ -18,7 +18,8 @@ service BackendService {
 
   rpc DeleteFeed(DeleteFeedRequest) returns (DeleteFeedResponse);
 
-  rpc SetActuatorState(SetActuatorStateRequest) returns (SetActuatorStateResponse);
+  rpc SetActuatorState(SetActuatorStateRequest)
+      returns (SetActuatorStateResponse);
 }
 
 message StreamSensorValuesRequest { string id = 1; }
@@ -33,14 +34,7 @@ message StreamFeedsChangesRequest {}
 
 message StreamFeedsChangesResponse { FeedsChange change = 1; }
 
-message FeedsChange {
-  repeated Feed added = 1;
-  repeated string removed = 2;
-}
-
-message CreateFeedRequest {
-  Feed feed = 1;
-}
+message CreateFeedRequest { Feed feed = 1; }
 
 message CreateFeedResponse {}
 
@@ -67,4 +61,29 @@ message Feed {
   string id = 1;
   string description = 2;
   FeedType type = 3;
+}
+
+message FeedsChange {
+  repeated Feed added = 1;
+  repeated string removed = 2;
+}
+
+message Config {
+  Feed feedConfig = 1;
+  oneof typeConfig {
+    SensorConfig sensorConfig = 2;
+    ActuatorConfig actuatorConfig = 3;
+  }
+}
+
+message SensorConfig {
+  bool hasNotification = 1;
+  float lowerThreshold = 2;
+  float upperThreshold = 3;
+}
+
+message ActuatorConfig {
+  bool automatic = 1;
+  string turnOnCronExpr = 2;
+  string turnOffCronExpr = 3;
 }

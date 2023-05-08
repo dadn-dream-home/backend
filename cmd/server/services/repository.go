@@ -113,6 +113,41 @@ func (r repository) ListFeeds(ctx context.Context) ([]*pb.Feed, error) {
 	return feeds, nil
 }
 
+func (r repository) InsertFeedValue(ctx context.Context, feedId string, value []byte) error {
+	log := telemetry.GetLogger(ctx)
+
+	log.Debugf("inserting feed value into database")
+
+	if _, err := r.db.Exec(
+		"INSERT INTO feed_values (feed_id, value) VALUES (?, ?)",
+		feedId, value,
+	); err != nil {
+		return fmt.Errorf("error inserting feed value into database: %w", err)
+	}
+
+	log.Infof("inserted feed value into database successfully")
+
+	return nil
+}
+
+func (r repository) GetFeedLatestValue(ctx context.Context, feedId string) ([]byte, error) {
+	log := telemetry.GetLogger(ctx)
+
+	log.Debugf("getting feed latest value from database")
+
+	var value []byte
+	if err := r.db.QueryRow(
+		"SELECT value FROM feed_values WHERE feed_id = ? ORDER BY time DESC LIMIT 1",
+		feedId,
+	).Scan(&value); err != nil {
+		return nil, fmt.Errorf("error getting feed latest value from database: %w", err)
+	}
+
+	log.Infof("got feed latest value from database successfully")
+
+	return value, nil
+}
+
 func (e ErrFeedAlreadyExisted) Error() string {
 	return fmt.Sprintf("feed %s already existed", e.Id)
 }

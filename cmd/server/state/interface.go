@@ -30,4 +30,6 @@ type Repository interface {
 	GetFeed(ctx context.Context, id string) (*pb.Feed, error)
 	ListFeeds(ctx context.Context) ([]*pb.Feed, error)
 	DeleteFeed(ctx context.Context, id string) error
+	InsertFeedValue(ctx context.Context, feed string, value []byte) error
+	GetFeedLatestValue(ctx context.Context, feed string) ([]byte, error)
 }
