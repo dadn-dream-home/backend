@@ -17,12 +17,19 @@ type pubSubValues struct {
 	state.State
 	mqtt mqtt.Client
 
-	subscribers map[string][]subscriber
+	subscribers    map[string][]subscriber
+	subscribersAll []subscriberAll
 }
 
 type subscriber struct {
 	id   string
 	ch   chan<- []byte
+	done chan struct{}
+}
+
+type subscriberAll struct {
+	id   string
+	ch   chan<- state.PubSubValuesAllData
 	done chan struct{}
 }
 
@@ -190,6 +197,19 @@ func (p *pubSubValues) Notify(ctx context.Context, feed string, payload []byte) 
 
 		log.Infof("notified subscriber")
 	}
+
+	for _, subscriber := range p.subscribersAll {
+		log := log.WithField("subscriber_id", subscriber.id)
+		log.Tracef("forwarding message to all-subscriber")
+
+		subscriber.ch <- state.PubSubValuesAllData{
+			Feed:  feed,
+			Value: payload,
+		}
+
+		log.Infof("notified all-subscriber")
+	}
+
 	p.RUnlock()
 
 	log.WithField("subscribers", len(p.subscribers[feed])).
@@ -234,4 +254,21 @@ func (p *pubSubValues) Publish(ctx context.Context, id string, feed string, valu
 	log.Infof("published to feed")
 
 	return nil
+}
+
+func (p *pubSubValues) SubscribeAll(ctx context.Context, id string, ch chan<- state.PubSubValuesAllData) (<-chan struct{}, error) {
+	log := telemetry.GetLogger(ctx)
+
+	p.Lock()
+	subscriber := subscriberAll{
+		id:   id,
+		ch:   ch,
+		done: make(chan struct{}, 1),
+	}
+	p.subscribersAll = append(p.subscribersAll, subscriber)
+	p.Unlock()
+
+	log.Infof("subscribed to all pubsub")
+
+	return subscriber.done, nil
 }

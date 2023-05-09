@@ -4,6 +4,8 @@ option go_package = "github.com/dadn-dream-home/x/protobuf";
 
 package protobuf;
 
+import 'google/protobuf/timestamp.proto';
+
 service BackendService {
   rpc StreamSensorValues(StreamSensorValuesRequest)
       returns (stream StreamSensorValuesResponse);
@@ -20,6 +22,9 @@ service BackendService {
 
   rpc SetActuatorState(SetActuatorStateRequest)
       returns (SetActuatorStateResponse);
+
+  rpc StreamNotifications(StreamNotificationsRequest)
+      returns (stream StreamNotificationsResponse);
 }
 
 message StreamSensorValuesRequest { string id = 1; }
@@ -48,6 +53,10 @@ message SetActuatorStateRequest {
 }
 
 message SetActuatorStateResponse {}
+
+message StreamNotificationsRequest { string id = 1; }
+
+message StreamNotificationsResponse { Notification notification = 1; }
 
 // data types
 
@@ -86,4 +95,10 @@ message ActuatorConfig {
   bool automatic = 1;
   string turnOnCronExpr = 2;
   string turnOffCronExpr = 3;
+}
+
+message Notification {
+  google.protobuf.Timestamp timestamp = 1;
+  Feed feed = 2;
+  string message = 3;
 }

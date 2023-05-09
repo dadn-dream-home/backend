@@ -28,6 +28,7 @@ type BackendServiceClient interface {
 	CreateFeed(ctx context.Context, in *CreateFeedRequest, opts ...grpc.CallOption) (*CreateFeedResponse, error)
 	DeleteFeed(ctx context.Context, in *DeleteFeedRequest, opts ...grpc.CallOption) (*DeleteFeedResponse, error)
 	SetActuatorState(ctx context.Context, in *SetActuatorStateRequest, opts ...grpc.CallOption) (*SetActuatorStateResponse, error)
+	StreamNotifications(ctx context.Context, in *StreamNotificationsRequest, opts ...grpc.CallOption) (BackendService_StreamNotificationsClient, error)
 }
 
 type backendServiceClient struct {
@@ -161,6 +162,38 @@ func (c *backendServiceClient) SetActuatorState(ctx context.Context, in *SetActu
 	return out, nil
 }
 
+func (c *backendServiceClient) StreamNotifications(ctx context.Context, in *StreamNotificationsRequest, opts ...grpc.CallOption) (BackendService_StreamNotificationsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &BackendService_ServiceDesc.Streams[3], "/protobuf.BackendService/StreamNotifications", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &backendServiceStreamNotificationsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type BackendService_StreamNotificationsClient interface {
+	Recv() (*StreamNotificationsResponse, error)
+	grpc.ClientStream
+}
+
+type backendServiceStreamNotificationsClient struct {
+	grpc.ClientStream
+}
+
+func (x *backendServiceStreamNotificationsClient) Recv() (*StreamNotificationsResponse, error) {
+	m := new(StreamNotificationsResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // BackendServiceServer is the server API for BackendService service.
 // All implementations must embed UnimplementedBackendServiceServer
 // for forward compatibility
@@ -171,6 +204,7 @@ type BackendServiceServer interface {
 	CreateFeed(context.Context, *CreateFeedRequest) (*CreateFeedResponse, error)
 	DeleteFeed(context.Context, *DeleteFeedRequest) (*DeleteFeedResponse, error)
 	SetActuatorState(context.Context, *SetActuatorStateRequest) (*SetActuatorStateResponse, error)
+	StreamNotifications(*StreamNotificationsRequest, BackendService_StreamNotificationsServer) error
 	mustEmbedUnimplementedBackendServiceServer()
 }
 
@@ -195,6 +229,9 @@ func (UnimplementedBackendServiceServer) DeleteFeed(context.Context, *DeleteFeed
 }
 func (UnimplementedBackendServiceServer) SetActuatorState(context.Context, *SetActuatorStateRequest) (*SetActuatorStateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetActuatorState not implemented")
+}
+func (UnimplementedBackendServiceServer) StreamNotifications(*StreamNotificationsRequest, BackendService_StreamNotificationsServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamNotifications not implemented")
 }
 func (UnimplementedBackendServiceServer) mustEmbedUnimplementedBackendServiceServer() {}
 
@@ -326,6 +363,27 @@ func _BackendService_SetActuatorState_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BackendService_StreamNotifications_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(StreamNotificationsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(BackendServiceServer).StreamNotifications(m, &backendServiceStreamNotificationsServer{stream})
+}
+
+type BackendService_StreamNotificationsServer interface {
+	Send(*StreamNotificationsResponse) error
+	grpc.ServerStream
+}
+
+type backendServiceStreamNotificationsServer struct {
+	grpc.ServerStream
+}
+
+func (x *backendServiceStreamNotificationsServer) Send(m *StreamNotificationsResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // BackendService_ServiceDesc is the grpc.ServiceDesc for BackendService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -360,6 +418,11 @@ var BackendService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "StreamFeedsChanges",
 			Handler:       _BackendService_StreamFeedsChanges_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "StreamNotifications",
+			Handler:       _BackendService_StreamNotifications_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -148,6 +148,41 @@ func (r repository) GetFeedLatestValue(ctx context.Context, feedId string) ([]by
 	return value, nil
 }
 
+func (r repository) InsertNotification(ctx context.Context, notification *pb.Notification) error {
+	log := telemetry.GetLogger(ctx)
+
+	log.Debugf("inserting notification into database")
+
+	if _, err := r.db.Exec(
+		"INSERT INTO notifications (feed_id, message) VALUES (?, ?)",
+		notification.Feed.Id, notification.Message,
+	); err != nil {
+		return fmt.Errorf("error inserting notification into database: %w", err)
+	}
+
+	log.Infof("inserted notification into database successfully")
+
+	return nil
+}
+
+func (r repository) GetLatestNotification(ctx context.Context, feedId string) (*pb.Notification, error) {
+	log := telemetry.GetLogger(ctx)
+
+	log.Debugf("getting latest notification from database")
+
+	var notification pb.Notification
+	if err := r.db.QueryRow(
+		"SELECT feed_id, message, time FROM notifications WHERE feed_id = ? ORDER BY time DESC LIMIT 1",
+		feedId,
+	).Scan(&notification.Feed.Id, &notification.Message, notification.Timestamp); err != nil {
+		return nil, fmt.Errorf("error getting latest notification from database: %w", err)
+	}
+
+	log.Infof("got latest notification from database successfully")
+
+	return &notification, nil
+}
+
 func (e ErrFeedAlreadyExisted) Error() string {
 	return fmt.Sprintf("feed %s already existed", e.Id)
 }

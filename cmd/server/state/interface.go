@@ -10,12 +10,19 @@ type State interface {
 	PubSubValues() PubSubValues
 	PubSubFeeds() PubSubFeeds
 	Repository() Repository
+	Notifier() Notifier
 }
 
 type PubSubValues interface {
 	Subscribe(ctx context.Context, sid string, feed string, ch chan<- []byte) (done <-chan struct{}, err error)
+	SubscribeAll(ctx context.Context, sid string, ch chan<- PubSubValuesAllData) (done <-chan struct{}, err error)
 	Unsubscribe(ctx context.Context, sid string, feed string) error
 	Publish(ctx context.Context, sid string, feed string, value []byte) error
+}
+
+type PubSubValuesAllData struct {
+	Feed  string
+	Value []byte
 }
 
 type PubSubFeeds interface {
@@ -32,4 +39,11 @@ type Repository interface {
 	DeleteFeed(ctx context.Context, id string) error
 	InsertFeedValue(ctx context.Context, feed string, value []byte) error
 	GetFeedLatestValue(ctx context.Context, feed string) ([]byte, error)
+	InsertNotification(ctx context.Context, notification *pb.Notification) error
+	GetLatestNotification(ctx context.Context, feed string) (*pb.Notification, error)
+}
+
+type Notifier interface {
+	Subscribe(ctx context.Context, sid string) (<-chan *pb.Notification, error)
+	Unsubscribe(ctx context.Context, sid string) error
 }

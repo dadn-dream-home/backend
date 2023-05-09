@@ -25,10 +25,12 @@ type BackendService struct {
 	handlers.StreamSensorValuesHandler
 	handlers.StreamFeedsChangesHandler
 	handlers.SetActuatorStateHandler
+	handlers.StreamNotificationsHandler
 
 	pubSubValues state.PubSubValues
 	pubSubFeeds  state.PubSubFeeds
 	repository   state.Repository
+	notifier     state.Notifier
 }
 
 var _ state.State = (*BackendService)(nil)
@@ -48,6 +50,8 @@ func NewBackendService(ctx context.Context) (service *BackendService, err error)
 		return nil, err
 	}
 
+	service.notifier = NewNotifier(ctx, service)
+
 	// Inject dependencies into handlers, basically:
 	// service.Handler = &handlers.Handler{State: &service}
 
@@ -62,6 +66,7 @@ func NewBackendService(ctx context.Context) (service *BackendService, err error)
 		reflect.TypeOf(service.StreamSensorValuesHandler),
 		reflect.TypeOf(service.StreamFeedsChangesHandler),
 		reflect.TypeOf(service.SetActuatorStateHandler),
+		reflect.TypeOf(service.StreamNotificationsHandler),
 	} {
 		serviceHandlerValue := serviceValue.Elem().FieldByName(handlerType.Name())
 		handlerValue := reflect.New(handlerType)
@@ -82,6 +87,10 @@ func (s *BackendService) PubSubValues() state.PubSubValues {
 
 func (s *BackendService) Repository() state.Repository {
 	return s.repository
+}
+
+func (s *BackendService) Notifier() state.Notifier {
+	return s.notifier
 }
 
 func (s *BackendService) Serve(ctx context.Context) {
