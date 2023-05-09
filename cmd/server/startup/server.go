@@ -1,22 +1,25 @@
-package services
+package startup
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net"
 	"reflect"
 
 	"github.com/dadn-dream-home/x/server/handlers"
 	"github.com/dadn-dream-home/x/server/interceptors"
+	"github.com/dadn-dream-home/x/server/services"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
 )
 
-type BackendService struct {
+type Server struct {
 	pb.UnsafeBackendServiceServer
 
 	handlers.CreateFeedHandler
@@ -33,24 +36,14 @@ type BackendService struct {
 	notifier     state.Notifier
 }
 
-var _ state.State = (*BackendService)(nil)
+var _ state.State = (*Server)(nil)
 
-func NewBackendService(ctx context.Context) (service *BackendService, err error) {
-	service = &BackendService{}
-
-	service.repository, err = NewRepository(ctx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	service.pubSubFeeds = NewPubSubFeeds(ctx, service)
-
-	service.pubSubValues, err = NewPubSubValues(ctx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	service.notifier = NewNotifier(ctx, service)
+func NewServer(ctx context.Context, db *sql.DB, mqtt mqtt.Client) *Server {
+	s := &Server{}
+	s.repository = services.NewRepository(ctx, s, db)
+	s.pubSubFeeds = services.NewPubSubFeeds(ctx, s)
+	s.pubSubValues = services.NewPubSubValues(ctx, s, mqtt)
+	s.notifier = services.NewNotifier(ctx, s)
 
 	// Inject dependencies into handlers, basically:
 	// service.Handler = &handlers.Handler{State: &service}
@@ -58,15 +51,15 @@ func NewBackendService(ctx context.Context) (service *BackendService, err error)
 	// TODO: could be great if the list is created from
 	// pb.unimplementedBackendServiceServer
 
-	serviceValue := reflect.ValueOf(service)
+	serviceValue := reflect.ValueOf(s)
 	for _, handlerType := range []reflect.Type{
-		reflect.TypeOf(service.CreateFeedHandler),
-		reflect.TypeOf(service.DeleteFeedHandler),
-		reflect.TypeOf(service.StreamActuatorStatesHandler),
-		reflect.TypeOf(service.StreamSensorValuesHandler),
-		reflect.TypeOf(service.StreamFeedsChangesHandler),
-		reflect.TypeOf(service.SetActuatorStateHandler),
-		reflect.TypeOf(service.StreamNotificationsHandler),
+		reflect.TypeOf(s.CreateFeedHandler),
+		reflect.TypeOf(s.DeleteFeedHandler),
+		reflect.TypeOf(s.StreamActuatorStatesHandler),
+		reflect.TypeOf(s.StreamSensorValuesHandler),
+		reflect.TypeOf(s.StreamFeedsChangesHandler),
+		reflect.TypeOf(s.SetActuatorStateHandler),
+		reflect.TypeOf(s.StreamNotificationsHandler),
 	} {
 		serviceHandlerValue := serviceValue.Elem().FieldByName(handlerType.Name())
 		handlerValue := reflect.New(handlerType)
@@ -74,45 +67,51 @@ func NewBackendService(ctx context.Context) (service *BackendService, err error)
 		serviceHandlerValue.Set(handlerValue.Elem())
 	}
 
-	return service, nil
+	return s
 }
 
-func (s *BackendService) PubSubFeeds() state.PubSubFeeds {
+func (s *Server) PubSubFeeds() state.PubSubFeeds {
 	return s.pubSubFeeds
 }
 
-func (s *BackendService) PubSubValues() state.PubSubValues {
+func (s *Server) PubSubValues() state.PubSubValues {
 	return s.pubSubValues
 }
 
-func (s *BackendService) Repository() state.Repository {
+func (s *Server) Repository() state.Repository {
 	return s.repository
 }
 
-func (s *BackendService) Notifier() state.Notifier {
+func (s *Server) Notifier() state.Notifier {
 	return s.notifier
 }
 
-func (s *BackendService) Serve(ctx context.Context) {
+func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 	log := telemetry.GetLogger(ctx)
 
-	server := grpc.NewServer(grpc.ChainUnaryInterceptor(
+	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		interceptors.AddLoggerUnaryInterceptor,
 		interceptors.RequestIdUnaryInterceptor,
 	), grpc.ChainStreamInterceptor(
 		interceptors.AddLoggerStreamInterceptor,
 		interceptors.RequestIdStreamInterceptor,
 	))
-	pb.RegisterBackendServiceServer(server, s)
-	reflection.Register(server)
+	pb.RegisterBackendServiceServer(grpcServer, s)
+	reflection.Register(grpcServer)
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 50051))
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+}
+
+func Listen(ctx context.Context, config ServerConfig) net.Listener {
+	log := telemetry.GetLogger(ctx)
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", config.Port))
 	if err != nil {
-		panic(err)
+		log.WithError(err).Fatalf("failed to listen")
 	}
 	log.WithField("addr", lis.Addr()).Infof("server listening")
 
-	if err := server.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	return lis
 }

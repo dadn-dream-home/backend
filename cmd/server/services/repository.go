@@ -24,16 +24,11 @@ type ErrFeedAlreadyExisted struct {
 
 type ErrFeedNotExists struct{}
 
-func NewRepository(ctx context.Context, state state.State) (state.Repository, error) {
-	db, err := NewDatabase()
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
+func NewRepository(ctx context.Context, state state.State, db *sql.DB) state.Repository {
 	return repository{
 		State: state,
 		db:    db,
-	}, nil
+	}
 }
 
 func (r repository) CreateFeed(ctx context.Context, feed *pb.Feed) error {

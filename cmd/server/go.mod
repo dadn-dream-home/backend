@@ -14,9 +14,14 @@ require (
 )
 
 require (
+	github.com/agext/levenshtein v1.2.1 // indirect
+	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/hashicorp/hcl/v2 v2.16.2 // indirect
+	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
+	github.com/zclconf/go-cty v1.12.1 // indirect
 	golang.org/x/net v0.9.0 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.7.0 // indirect

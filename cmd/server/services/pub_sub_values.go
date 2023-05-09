@@ -30,21 +30,14 @@ type subscriberAll struct {
 	ch chan<- map[string][]byte
 }
 
-func NewPubSubValues(ctx context.Context, state state.State) (state.PubSubValues, error) {
-	mqtt, err := NewMQTTClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to mqtt broker: %w", err)
-	}
-
+func NewPubSubValues(ctx context.Context, state state.State, mqtt mqtt.Client) state.PubSubValues {
 	ps := &pubSubValues{
 		State:       state,
 		mqtt:        mqtt,
 		subscribers: make(map[string][]subscriber),
 	}
 
-	go ps.ListenToFeedsChanges(ctx)
-
-	return ps, nil
+	return ps
 }
 
 func (p *pubSubValues) ListenToFeedsChanges(ctx context.Context) {
