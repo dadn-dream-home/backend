@@ -14,19 +14,14 @@ type State interface {
 }
 
 type PubSubValues interface {
-	Subscribe(ctx context.Context, sid string, feed string, ch chan<- []byte) (done <-chan struct{}, err error)
-	SubscribeAll(ctx context.Context, sid string, ch chan<- PubSubValuesAllData) (done <-chan struct{}, err error)
+	Subscribe(ctx context.Context, sid string, feed string) (<-chan []byte, error)
+	SubscribeAll(ctx context.Context, sid string) (<-chan map[string][]byte, error)
 	Unsubscribe(ctx context.Context, sid string, feed string) error
 	Publish(ctx context.Context, sid string, feed string, value []byte) error
 }
 
-type PubSubValuesAllData struct {
-	Feed  string
-	Value []byte
-}
-
 type PubSubFeeds interface {
-	Subscribe(ctx context.Context, sid string, ch chan<- *pb.FeedsChange) (done <-chan struct{}, err error)
+	Subscribe(ctx context.Context, sid string) (ch <-chan *pb.FeedsChange, err error)
 	Unsubscribe(ctx context.Context, sid string) error
 	CreateFeed(ctx context.Context, sid string, feed *pb.Feed) error
 	DeleteFeed(ctx context.Context, sid string, feed string) error

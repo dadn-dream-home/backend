@@ -30,8 +30,7 @@ func (s StreamActuatorStatesHandler) StreamActuatorStates(req *pb.StreamActuator
 		return status.Errorf(codes.InvalidArgument, "feed type %s is not actuator", feed.Type)
 	}
 
-	ch := make(chan []byte)
-	done, err := s.PubSubValues().Subscribe(ctx, rid, req.Id, ch)
+	ch, err := s.PubSubValues().Subscribe(ctx, rid, req.Id)
 	if err != nil {
 		return err
 	}
@@ -46,14 +45,13 @@ func (s StreamActuatorStatesHandler) StreamActuatorStates(req *pb.StreamActuator
 			if err != nil {
 				log.WithError(err).Warnf("error unsubscribing from feed")
 			}
-			return status.Errorf(codes.Canceled, "stream canceled")
-			// wait until done is closed
-
-		case <-done:
-			log.Tracef("<-done")
-			return status.Errorf(codes.Canceled, "stream canceled")
 
 		case msg := <-ch:
+			if msg == nil {
+				log.Infof("streaming finished")
+				return nil
+			}
+
 			err = stream.Send(&pb.StreamActuatorStatesResponse{
 				State: string(msg) != "0",
 			})

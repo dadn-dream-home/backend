@@ -32,8 +32,7 @@ func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamSensorValues
 		return status.Errorf(codes.InvalidArgument, "feed type %s is not sensor", feed.Type)
 	}
 
-	ch := make(chan []byte)
-	done, err := s.PubSubValues().Subscribe(ctx, rid, req.Id, ch)
+	ch, err := s.PubSubValues().Subscribe(ctx, rid, req.Id)
 	if err != nil {
 		return err
 	}
@@ -48,14 +47,13 @@ func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamSensorValues
 			if err != nil {
 				log.WithError(err).Warnf("error unsubscribing from feed")
 			}
-			return status.Errorf(codes.Canceled, "stream canceled")
-			// wait until done is closed
-
-		case <-done:
-			log.Tracef("<-done")
-			return status.Errorf(codes.Canceled, "stream canceled")
 
 		case msg := <-ch:
+			if msg == nil {
+				log.Infof("streaming finished")
+				return nil
+			}
+
 			value, err := strconv.ParseFloat(string(msg), 32)
 			if err != nil {
 				log.WithError(err).Warnf("error parsing float %s: %w", string(msg))

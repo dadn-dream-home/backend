@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	pb "github.com/dadn-dream-home/x/protobuf"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -22,15 +21,13 @@ type pubSubValues struct {
 }
 
 type subscriber struct {
-	id   string
-	ch   chan<- []byte
-	done chan struct{}
+	id string
+	ch chan<- []byte
 }
 
 type subscriberAll struct {
-	id   string
-	ch   chan<- state.PubSubValuesAllData
-	done chan struct{}
+	id string
+	ch chan<- map[string][]byte
 }
 
 func NewPubSubValues(ctx context.Context, state state.State) (state.PubSubValues, error) {
@@ -53,8 +50,7 @@ func NewPubSubValues(ctx context.Context, state state.State) (state.PubSubValues
 func (p *pubSubValues) ListenToFeedsChanges(ctx context.Context) {
 	log := telemetry.GetLogger(ctx)
 
-	ch := make(chan *pb.FeedsChange)
-	done, err := p.PubSubFeeds().Subscribe(ctx, "pub-sub-values", ch)
+	ch, err := p.PubSubFeeds().Subscribe(ctx, "pub-sub-values")
 	if err != nil {
 		log.Fatalf("failed to subscribe to pubsub feeds: %v", err)
 	}
@@ -63,11 +59,14 @@ func (p *pubSubValues) ListenToFeedsChanges(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			log.Infof("context cancelled")
-			return
-		case <-done:
-			log.Infof("done")
-			return
+			p.PubSubFeeds().Unsubscribe(ctx, "pub-sub-values")
+
 		case change := <-ch:
+			if change == nil {
+				log.Infof("stream ended")
+				return
+			}
+
 			for _, feed := range change.Added {
 				if err := p.AddFeed(ctx, feed.Id); err != nil {
 					log.Fatalf("failed to add feed %s: %v", feed, err)
@@ -82,7 +81,7 @@ func (p *pubSubValues) ListenToFeedsChanges(ctx context.Context) {
 	}
 }
 
-func (p *pubSubValues) Subscribe(ctx context.Context, id string, feed string, ch chan<- []byte) (<-chan struct{}, error) {
+func (p *pubSubValues) Subscribe(ctx context.Context, id string, feed string) (<-chan []byte, error) {
 	log := telemetry.GetLogger(ctx).WithField("feed", feed)
 
 	if !p.hasFeed(ctx, feed) {
@@ -90,10 +89,10 @@ func (p *pubSubValues) Subscribe(ctx context.Context, id string, feed string, ch
 	}
 
 	p.Lock()
+	ch := make(chan []byte, 1)
 	subscriber := subscriber{
-		id:   id,
-		ch:   ch,
-		done: make(chan struct{}, 1),
+		id: id,
+		ch: ch,
 	}
 	p.subscribers[feed] = append(p.subscribers[feed], subscriber)
 	p.Unlock()
@@ -107,7 +106,7 @@ func (p *pubSubValues) Subscribe(ctx context.Context, id string, feed string, ch
 		log.Infof("sent latest value")
 	}()
 
-	return subscriber.done, nil
+	return ch, nil
 }
 
 func (p *pubSubValues) hasFeed(ctx context.Context, feed string) bool {
@@ -135,7 +134,7 @@ func (p *pubSubValues) Unsubscribe(ctx context.Context, id string, feed string) 
 			p.Lock()
 			log.Tracef("upgraded to write lock")
 
-			subscriber.done <- struct{}{}
+			subscriber.ch <- nil
 			p.subscribers[feed] = append(p.subscribers[feed][:i], p.subscribers[feed][i+1:]...)
 			close(subscriber.ch)
 
@@ -202,10 +201,9 @@ func (p *pubSubValues) Notify(ctx context.Context, feed string, payload []byte) 
 		log := log.WithField("subscriber_id", subscriber.id)
 		log.Tracef("forwarding message to all-subscriber")
 
-		subscriber.ch <- state.PubSubValuesAllData{
-			Feed:  feed,
-			Value: payload,
-		}
+		data := make(map[string][]byte, 1)
+		data[feed] = payload
+		subscriber.ch <- data
 
 		log.Infof("notified all-subscriber")
 	}
@@ -225,7 +223,7 @@ func (p *pubSubValues) RemoveFeed(ctx context.Context, feed string) error {
 
 	p.Lock()
 	for _, subscriber := range p.subscribers[feed] {
-		subscriber.done <- struct{}{}
+		subscriber.ch <- nil
 		close(subscriber.ch)
 	}
 	delete(p.subscribers, feed)
@@ -256,19 +254,19 @@ func (p *pubSubValues) Publish(ctx context.Context, id string, feed string, valu
 	return nil
 }
 
-func (p *pubSubValues) SubscribeAll(ctx context.Context, id string, ch chan<- state.PubSubValuesAllData) (<-chan struct{}, error) {
+func (p *pubSubValues) SubscribeAll(ctx context.Context, id string) (<-chan map[string][]byte, error) {
 	log := telemetry.GetLogger(ctx)
 
 	p.Lock()
+	ch := make(chan map[string][]byte, 1)
 	subscriber := subscriberAll{
-		id:   id,
-		ch:   ch,
-		done: make(chan struct{}, 1),
+		id: id,
+		ch: ch,
 	}
 	p.subscribersAll = append(p.subscribersAll, subscriber)
 	p.Unlock()
 
 	log.Infof("subscribed to all pubsub")
 
-	return subscriber.done, nil
+	return ch, nil
 }

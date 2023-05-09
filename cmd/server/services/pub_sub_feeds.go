@@ -19,9 +19,8 @@ type pubSubFeeds struct {
 }
 
 type pubSubFeedsSubscriber struct {
-	id   string
-	ch   chan<- *pb.FeedsChange
-	done chan struct{}
+	id string
+	ch chan<- *pb.FeedsChange
 }
 
 func NewPubSubFeeds(ctx context.Context, state state.State) state.PubSubFeeds {
@@ -31,16 +30,17 @@ func NewPubSubFeeds(ctx context.Context, state state.State) state.PubSubFeeds {
 	}
 }
 
-func (p *pubSubFeeds) Subscribe(ctx context.Context, id string, ch chan<- *pb.FeedsChange) (<-chan struct{}, error) {
+func (p *pubSubFeeds) Subscribe(ctx context.Context, id string) (<-chan *pb.FeedsChange, error) {
 	p.Lock()
 	defer p.Unlock()
 
 	log := telemetry.GetLogger(ctx).WithField("subscriber_id", id)
 
+	ch := make(chan *pb.FeedsChange, 1)
+
 	p.subscribers[id] = pubSubFeedsSubscriber{
-		id:   id,
-		ch:   ch,
-		done: make(chan struct{}, 1),
+		id: id,
+		ch: ch,
 	}
 
 	// send initial list of feeds
@@ -58,14 +58,14 @@ func (p *pubSubFeeds) Subscribe(ctx context.Context, id string, ch chan<- *pb.Fe
 
 	log.Infof("subscribed to pub sub feeds")
 
-	return p.subscribers[id].done, nil
+	return ch, nil
 }
 
 func (p *pubSubFeeds) Unsubscribe(ctx context.Context, id string) error {
 	log := telemetry.GetLogger(ctx).WithField("subscriber_id", id)
 
 	p.Lock()
-	p.subscribers[id].done <- struct{}{}
+	p.subscribers[id].ch <- nil
 	delete(p.subscribers, id)
 	p.Unlock()
 

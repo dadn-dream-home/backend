@@ -21,8 +21,7 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 
 	log.Infof("streaming feed changes")
 
-	ch := make(chan *pb.FeedsChange)
-	done, err := h.PubSubFeeds().Subscribe(ctx, rid, ch)
+	ch, err := h.PubSubFeeds().Subscribe(ctx, rid)
 	if err != nil {
 		log.WithError(err).Errorf("failed to subscribe to pub sub feeds")
 		return err
@@ -36,12 +35,12 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 			if err != nil {
 				log.WithError(err).Errorf("error unsubscribing from feeds")
 			}
-			return nil
-		case <-done:
-			log.Tracef("<-done")
-			log.Infof("streaming feed changes done")
-			return nil
+
 		case change := <-ch:
+			if change == nil {
+				return nil
+			}
+
 			if err := stream.Send(&pb.StreamFeedsChangesResponse{
 				Change: change,
 			}); err != nil {
