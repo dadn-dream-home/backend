@@ -7,7 +7,6 @@ import (
 	pb "github.com/dadn-dream-home/x/protobuf"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
-	"go.uber.org/zap"
 )
 
 type pubSubFeeds struct {
@@ -25,33 +24,27 @@ func NewPubSubFeeds(ctx context.Context, state state.State) state.PubSubFeeds {
 	}
 }
 
-func (p *pubSubFeeds) Subscribe(ctx context.Context) <-chan *pb.FeedsChange {
+func (p *pubSubFeeds) Subscribe(ctx context.Context) (<-chan *pb.FeedsChange, error) {
 	p.Lock()
 	defer p.Unlock()
 
 	log := telemetry.GetLogger(ctx)
 
-	ch := make(chan *pb.FeedsChange)
+	ch := make(chan *pb.FeedsChange, 1)
 
 	p.subscribers[ch] = ch
 
-	// send initial list of feeds
-	go func() {
-		feeds, err := p.Repository().ListFeeds(ctx)
-		if err != nil {
-			log.Fatal("failed to list feeds", zap.Error(err))
-		}
+	// send initial list of feeds into the buffer
+	feeds, err := p.Repository().ListFeeds(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-		ch <- &pb.FeedsChange{Addeds: feeds}
-
-		if err != nil {
-			log.Fatal("failed to send initial list of feeds", zap.Error(err))
-		}
-	}()
+	ch <- &pb.FeedsChange{Addeds: feeds}
 
 	log.Info("subscribed to pub sub feeds")
 
-	return ch
+	return ch, nil
 }
 
 func (p *pubSubFeeds) Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange) {

@@ -24,7 +24,7 @@ type PubSubValues interface {
 }
 
 type PubSubFeeds interface {
-	Subscribe(ctx context.Context) <-chan *pb.FeedsChange
+	Subscribe(ctx context.Context) (<-chan *pb.FeedsChange, error)
 	Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange)
 	CreateFeed(ctx context.Context, feed *pb.Feed) error
 	DeleteFeed(ctx context.Context, feedID string) error

@@ -31,9 +31,10 @@ func (r repository) CreateFeed(ctx context.Context, feed *pb.Feed) error {
 	log := telemetry.GetLogger(ctx)
 
 	if res, err := r.db.Exec("INSERT OR IGNORE INTO feeds (id, type) VALUES (?, ?)", feed.Id, feed.Type); err != nil {
-		return errutils.Internal(fmt.Errorf("error inserting feed into database: %w", err))
+		return errutils.Internal(ctx, fmt.Errorf(
+			"error inserting feed into database: %w", err))
 	} else if n, _ := res.RowsAffected(); n == 0 {
-		return errutils.AlreadyExists(&errdetails.ResourceInfo{
+		return errutils.AlreadyExists(ctx, &errdetails.ResourceInfo{
 			ResourceType: "Feed",
 			ResourceName: feed.Id,
 			Description:  fmt.Sprintf("Feed '%s' already exists", feed.Id),
@@ -50,13 +51,14 @@ func (r repository) DeleteFeed(ctx context.Context, feedId string) error {
 
 	res, err := r.db.Exec("DELETE FROM feeds WHERE id = ?", feedId)
 	if err != nil {
-		return errutils.Internal(fmt.Errorf("error deleting feed from database: %w", err))
+		return errutils.Internal(ctx, fmt.Errorf(
+			"error deleting feed from database: %w", err))
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
 		log.Fatal("database driver not support rows affected to check if feed exists", zap.Error(err))
 	} else if n == 0 {
-		return errutils.NotFound(&errdetails.ResourceInfo{
+		return errutils.NotFound(ctx, &errdetails.ResourceInfo{
 			ResourceType: "Feed",
 			ResourceName: feedId,
 			Description:  fmt.Sprintf("Feed '%s' not found", feedId),
@@ -74,13 +76,14 @@ func (r repository) GetFeed(ctx context.Context, feedId string) (*pb.Feed, error
 	var feed pb.Feed
 	if err := r.db.QueryRow("SELECT id, type FROM feeds WHERE id = ?", feedId).Scan(&feed.Id, &feed.Type); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errutils.NotFound(&errdetails.ResourceInfo{
+			return nil, errutils.NotFound(ctx, &errdetails.ResourceInfo{
 				ResourceType: "Feed",
 				ResourceName: feedId,
 				Description:  fmt.Sprintf("Feed '%s' not found", feedId),
 			})
 		}
-		return nil, errutils.Internal(fmt.Errorf("error querying feed from database: %w", err))
+		return nil, errutils.Internal(ctx, fmt.Errorf(
+			"error querying feed from database: %w", err))
 	}
 
 	log.Info("got feed %s from database successfully", zap.String("feed.id", feedId))
@@ -93,7 +96,8 @@ func (r repository) ListFeeds(ctx context.Context) ([]*pb.Feed, error) {
 
 	rows, err := r.db.Query("SELECT id, type FROM feeds")
 	if err != nil {
-		return nil, errutils.Internal(fmt.Errorf("error querying feeds from database: %w", err))
+		return nil, errutils.Internal(ctx, fmt.Errorf(
+			"error querying feeds from database: %w", err))
 	}
 	defer rows.Close()
 
@@ -101,7 +105,8 @@ func (r repository) ListFeeds(ctx context.Context) ([]*pb.Feed, error) {
 	for rows.Next() {
 		var feed pb.Feed
 		if err := rows.Scan(&feed.Id, &feed.Type); err != nil {
-			return nil, errutils.Internal(fmt.Errorf("error scanning feed from database: %w", err))
+			return nil, errutils.Internal(ctx, fmt.Errorf(
+				"error scanning feed from database: %w", err))
 		}
 		feeds = append(feeds, &feed)
 	}
@@ -118,7 +123,8 @@ func (r repository) InsertFeedValue(ctx context.Context, feedId string, value []
 		"INSERT INTO feed_values (feed_id, value) VALUES (?, ?)",
 		feedId, value,
 	); err != nil {
-		return errutils.Internal(fmt.Errorf("error inserting feed value into database: %w", err))
+		return errutils.Internal(ctx, fmt.Errorf(
+			"error inserting feed value into database: %w", err))
 	}
 
 	log.Info("inserted feed value into database successfully")
@@ -138,7 +144,8 @@ func (r repository) GetFeedLatestValue(ctx context.Context, feedId string) ([]by
 			return nil, nil
 		}
 
-		return nil, errutils.Internal(fmt.Errorf("error querying feed latest value from database: %w", err))
+		return nil, errutils.Internal(ctx, fmt.Errorf(
+			"error querying feed latest value from database: %w", err))
 	}
 
 	log.Info("got feed latest value from database successfully")
@@ -153,7 +160,8 @@ func (r repository) InsertNotification(ctx context.Context, notification *pb.Not
 		"INSERT INTO notifications (feed_id, message) VALUES (?, ?)",
 		notification.Feed.Id, notification.Message,
 	); err != nil {
-		return errutils.Internal(fmt.Errorf("error inserting notification into database: %w", err))
+		return errutils.Internal(ctx, fmt.Errorf(
+			"error inserting notification into database: %w", err))
 	}
 
 	log.Info("inserted notification into database successfully")
@@ -172,7 +180,8 @@ func (r repository) GetLatestNotification(ctx context.Context, feedId string) (*
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, errutils.Internal(fmt.Errorf("error querying latest notification from database: %w", err))
+		return nil, errutils.Internal(ctx, fmt.Errorf(
+			"error querying latest notification from database: %w", err))
 	}
 
 	log.Info("got latest notification from database successfully")

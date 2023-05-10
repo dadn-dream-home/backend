@@ -20,14 +20,14 @@ func (h CreateFeedHandler) CreateFeed(ctx context.Context, req *pb.CreateFeedReq
 	log := telemetry.GetLogger(ctx)
 
 	if req.Feed == nil {
-		return nil, errutils.InvalidArgument(&errdetails.BadRequest_FieldViolation{
+		return nil, errutils.InvalidArgument(ctx, &errdetails.BadRequest_FieldViolation{
 			Field:       "feed",
 			Description: "Request field 'feed' is nil, expected object",
 		})
 	}
 
 	if req.Feed.Id == "" {
-		return nil, errutils.InvalidArgument(&errdetails.BadRequest_FieldViolation{
+		return nil, errutils.InvalidArgument(ctx, &errdetails.BadRequest_FieldViolation{
 			Field:       "feed.id",
 			Description: "Request field 'feed.id' is empty, expected non-empty string",
 		})

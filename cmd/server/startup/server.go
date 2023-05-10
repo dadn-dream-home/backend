@@ -14,6 +14,7 @@ import (
 	"github.com/dadn-dream-home/x/server/telemetry"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -89,11 +90,6 @@ func (s *Server) Notifier() state.Notifier {
 
 func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 	log := telemetry.GetLogger(ctx)
-	defer func() {
-		if err := recover(); err != nil {
-			log.Fatal("panic", zap.Any("error", err))
-		}
-	}()
 
 	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		interceptors.AddLoggerUnaryInterceptor,
@@ -105,20 +101,23 @@ func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 	pb.RegisterBackendServiceServer(grpcServer, s)
 	reflection.Register(grpcServer)
 
-	go func() {
-		if err := s.notifier.Serve(ctx); err != nil {
-			panic(err)
+	group, ctx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		return s.pubSubValues.Serve(ctx)
+	})
+	group.Go(func() error {
+		return s.notifier.Serve(ctx)
+	})
+	go func() error {
+		if err := grpcServer.Serve(lis); err != nil {
+			group.Go(func() error { return err })
 		}
+		return nil
 	}()
 
-	go func() {
-		if err := s.pubSubValues.Serve(ctx); err != nil {
-			panic(err)
-		}
-	}()
-
-	if err := grpcServer.Serve(lis); err != nil {
-		panic(err)
+	if err := group.Wait(); err != nil {
+		grpcServer.Stop()
+		log.Fatal("server error", zap.Error(err))
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 
 type pubSubValues struct {
 	sync.RWMutex
+	Ready chan struct{}
 
 	state.State
 	mqtt mqtt.Client
@@ -35,8 +36,12 @@ func NewPubSubValues(ctx context.Context, state state.State, mqtt mqtt.Client) s
 
 func (p *pubSubValues) Serve(ctx context.Context) error {
 	log := telemetry.GetLogger(ctx)
+	log = log.With(zap.String("service", "pubsub_values"))
 
-	ch := p.PubSubFeeds().Subscribe(ctx)
+	ch, err := p.PubSubFeeds().Subscribe(ctx)
+	if err != nil {
+		return err
+	}
 
 	log.Info("started streaming")
 
@@ -50,22 +55,22 @@ func (p *pubSubValues) Serve(ctx context.Context) error {
 				log.Info("ended streaming")
 				return nil
 			}
-
+			
 			for _, feed := range change.Addeds {
-				log = log.With(zap.String("feed.id", feed.Id))
+				log := log.With(zap.String("feed.id", feed.Id))
 				ctx = telemetry.ContextWithLogger(ctx, log)
 
 				if err := p.addFeed(ctx, feed.Id); err != nil {
-					log.Fatal("failed to add feed", zap.Error(err))
+					return err
 				}
 				log.Info("added feed")
 			}
 			for _, feedID := range change.RemovedIDs {
-				log = log.With(zap.String("feed.id", feedID))
+				log := log.With(zap.String("feed.id", feedID))
 				ctx = telemetry.ContextWithLogger(ctx, log)
 
 				if err := p.removeFeed(ctx, feedID); err != nil {
-					log.Fatal("failed to remove feed", zap.Error(err))
+					return err
 				}
 				log.Info("removed feed")
 			}
@@ -80,26 +85,24 @@ func (p *pubSubValues) Subscribe(ctx context.Context, feedID string) (<-chan []b
 	log := telemetry.GetLogger(ctx)
 
 	if _, ok := p.subscribers[feedID]; !ok {
-		return nil, errutils.NotFound(&errdetails.ResourceInfo{
+		return nil, errutils.NotFound(ctx, &errdetails.ResourceInfo{
 			ResourceType: "Feed",
 			ResourceName: feedID,
 			Description:  fmt.Sprintf("Feed '%s' cannot be found", feedID),
 		})
 	}
 
-	ch := make(chan []byte)
+	ch := make(chan []byte, 1)
 	p.subscribers[feedID][ch] = ch
 
 	log.Info("subscribed to pubsub")
 
 	// send initial value
-	go func() {
-		value, _ := p.Repository().GetFeedLatestValue(ctx, feedID)
-		if value != nil {
-			ch <- value
-			log.Info("sent latest value", zap.ByteString("value", value))
-		}
-	}()
+	value, _ := p.Repository().GetFeedLatestValue(ctx, feedID)
+	if value != nil {
+		ch <- value
+		log.Info("sent latest value", zap.ByteString("value", value))
+	}
 
 	return ch, nil
 }
@@ -134,7 +137,7 @@ func (p *pubSubValues) addFeed(ctx context.Context, feedID string) error {
 	log := telemetry.GetLogger(ctx)
 
 	if _, ok := p.subscribers[feedID]; ok {
-		return errutils.AlreadyExists(&errdetails.ResourceInfo{
+		return errutils.AlreadyExists(ctx, &errdetails.ResourceInfo{
 			ResourceType: "Feed",
 			ResourceName: feedID,
 			Description:  fmt.Sprintf("Feed '%s' already exists", feedID),
@@ -144,8 +147,8 @@ func (p *pubSubValues) addFeed(ctx context.Context, feedID string) error {
 	if token := p.mqtt.Subscribe(feedID, 0, func(c mqtt.Client, m mqtt.Message) {
 		p.notify(ctx, feedID, m.Payload())
 	}); token.Wait() && token.Error() != nil {
-		return errutils.Internal(
-			fmt.Errorf("failed to subscribe to feed %s: %w", feedID, token.Error()))
+		return errutils.Internal(ctx, fmt.Errorf(
+			"failed to subscribe to feed %s: %w", feedID, token.Error()))
 	}
 
 	p.subscribers[feedID] = make(map[<-chan []byte]chan<- []byte)
@@ -177,7 +180,7 @@ func (p *pubSubValues) removeFeed(ctx context.Context, feed string) error {
 	log := telemetry.GetLogger(ctx)
 
 	if token := p.mqtt.Unsubscribe(feed); token.Wait() && token.Error() != nil {
-		return errutils.Internal(fmt.Errorf(
+		return errutils.Internal(ctx, fmt.Errorf(
 			"failed to unsubscribe from feed %s: %w", feed, token.Error(),
 		))
 	}
@@ -200,7 +203,7 @@ func (p *pubSubValues) Publish(ctx context.Context, feedID string, value []byte)
 	log := telemetry.GetLogger(ctx)
 
 	if token := p.mqtt.Publish(feedID, 0, false, value); token.Wait() && token.Error() != nil {
-		return errutils.Internal(fmt.Errorf(
+		return errutils.Internal(ctx, fmt.Errorf(
 			"failed to publish to feed %s: %w", feedID, token.Error(),
 		))
 	}

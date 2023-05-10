@@ -19,7 +19,10 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 	ctx := stream.Context()
 	log := telemetry.GetLogger(ctx)
 
-	ch := h.PubSubFeeds().Subscribe(ctx)
+	ch, err := h.PubSubFeeds().Subscribe(ctx)
+	if err != nil {
+		return err
+	}
 
 	log.Info("started streaming")
 

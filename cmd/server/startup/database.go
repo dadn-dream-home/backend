@@ -32,7 +32,6 @@ func Migrate(ctx context.Context, db *sql.DB, config DatabaseConfig) {
 	if err != nil {
 		log.Fatal("failed to init migrator driver", zap.Error(err))
 	}
-	defer instance.Close()
 
 	log.Info("initialized migrator driver")
 
@@ -52,7 +51,6 @@ func Migrate(ctx context.Context, db *sql.DB, config DatabaseConfig) {
 	if err != nil {
 		log.Fatal("failed to init migrator", zap.Error(err))
 	}
-	defer m.Close()
 
 	log.Info("initialized migrator")
 

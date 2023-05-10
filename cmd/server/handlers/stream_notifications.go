@@ -35,7 +35,7 @@ func (h StreamNotificationsHandler) StreamNotifications(req *pb.StreamNotificati
 				return nil
 			}
 
-			log = log.With(zap.String("feed.id", notification.Feed.Id))
+			log := log.With(zap.String("feed.id", notification.Feed.Id))
 			log.Debug("got notification", zap.String("notification.message", notification.Message))
 
 			if err = stream.Send(&pb.StreamNotificationsResponse{

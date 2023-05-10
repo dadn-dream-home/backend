@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/dadn-dream-home/x/server/errutils"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
@@ -29,6 +32,7 @@ func NewNotifier(ctx context.Context, state state.State) state.Notifier {
 	n := &notifier{
 		State:       state,
 		subscribers: make(map[<-chan *pb.Notification]chan<- *pb.Notification),
+		listeners:   make(map[string]<-chan []byte),
 	}
 
 	return n
@@ -53,21 +57,20 @@ func (n *notifier) Unsubscribe(ctx context.Context, ch <-chan *pb.Notification) 
 
 func (n *notifier) Serve(ctx context.Context) (err error) {
 	log := telemetry.GetLogger(ctx)
-	ctx, cancel := context.WithCancel(ctx)
+	log = log.With(zap.String("service", "notifier"))
 
-	defer func() {
-		cancel()
-		if err == nil {
-			err = recover().(error)
-		}
-	}()
+	ch, err := n.State.PubSubFeeds().Subscribe(ctx)
+	if err != nil {
+		return err
+	}
 
-	ch := n.State.PubSubFeeds().Subscribe(ctx)
+	group := errgroup.Group{}
 
 	for {
 		select {
 		case <-ctx.Done():
 			n.PubSubFeeds().Unsubscribe(ctx, ch)
+			return group.Wait()
 
 		case changes := <-ch:
 			if changes == nil {
@@ -75,7 +78,7 @@ func (n *notifier) Serve(ctx context.Context) (err error) {
 			}
 
 			for _, feed := range changes.Addeds {
-				log = log.With(zap.String("feed.id", feed.Id))
+				log := log.With(zap.String("feed.id", feed.Id))
 
 				// ignore feeds that are not temperature or humidity
 				if feed.Type != pb.FeedType_TEMPERATURE && feed.Type != pb.FeedType_HUMIDITY {
@@ -84,34 +87,40 @@ func (n *notifier) Serve(ctx context.Context) (err error) {
 
 				rx, err := n.subscribeToFeed(ctx, feed.Id)
 				if err != nil {
-					return errutils.Internal(
+					return errutils.Internal(ctx,
 						fmt.Errorf("failed to subscribe to feed: %w", err))
 				}
 
-				go func(feed *pb.Feed) {
-					if err := n.listenToFeed(ctx, feed, rx); err != nil {
-						panic(err)
-					}
-				}(feed)
+				log.Info("subscribed to feed")
+
+				f := feed
+				group.Go(func() error {
+					return n.listenToFeed(ctx, f, rx)
+				})
 			}
 
 			for _, feedID := range changes.RemovedIDs {
-				log = log.With(zap.String("feed.id", feedID))
+				log := log.With(zap.String("feed.id", feedID))
 
 				if _, ok := n.listeners[feedID]; !ok {
 					continue
 				}
 				n.unsubscribeFromFeed(ctx, feedID)
+
+				log.Info("unsubscribed from feed")
 			}
 		}
 	}
 }
 
-func (n *notifier) subscribeToFeed(ctx context.Context, feedID string) (<-chan []byte, error) {
+func (n *notifier) subscribeToFeed(ctx context.Context, feedID string) (rx <-chan []byte, err error) {
 	n.Lock()
 	defer n.Unlock()
 
-	rx, err := n.PubSubValues().Subscribe(ctx, feedID)
+	err = retry.Do(func() error {
+		rx, err = n.PubSubValues().Subscribe(ctx, feedID)
+		return err
+	}, retry.Delay(time.Second), retry.Attempts(10))
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +175,7 @@ func (n *notifier) listenToFeed(ctx context.Context, feed *pb.Feed, rx <-chan []
 
 			err = n.Repository().InsertNotification(ctx, notification)
 			if err != nil {
-				return errutils.Internal(
+				return errutils.Internal(ctx,
 					fmt.Errorf("failed to insert notification: %w", err))
 			}
 
