@@ -25,7 +25,7 @@ func NewPubSubFeeds(ctx context.Context, state state.State) state.PubSubFeeds {
 	}
 }
 
-func (p *pubSubFeeds) Subscribe(ctx context.Context) (<-chan *pb.FeedsChange, error) {
+func (p *pubSubFeeds) Subscribe(ctx context.Context) <-chan *pb.FeedsChange {
 	p.Lock()
 	defer p.Unlock()
 
@@ -51,10 +51,10 @@ func (p *pubSubFeeds) Subscribe(ctx context.Context) (<-chan *pb.FeedsChange, er
 
 	log.Info("subscribed to pub sub feeds")
 
-	return ch, nil
+	return ch
 }
 
-func (p *pubSubFeeds) Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange) error {
+func (p *pubSubFeeds) Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -64,8 +64,6 @@ func (p *pubSubFeeds) Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange
 	delete(p.subscribers, ch)
 
 	log.Info("unsubscribed from pub sub feeds")
-
-	return nil
 }
 
 func (p *pubSubFeeds) CreateFeed(ctx context.Context, feed *pb.Feed) error {

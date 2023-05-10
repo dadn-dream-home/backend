@@ -19,10 +19,7 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 	ctx := stream.Context()
 	log := telemetry.GetLogger(ctx)
 
-	ch, err := h.PubSubFeeds().Subscribe(ctx)
-	if err != nil {
-		return err
-	}
+	ch := h.PubSubFeeds().Subscribe(ctx)
 
 	log.Info("started streaming")
 
@@ -31,10 +28,7 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 		case <-stream.Context().Done():
 			log.Debug("cancelled streaming by client")
 
-			err := h.PubSubFeeds().Unsubscribe(ctx, ch)
-			if err != nil {
-				return nil
-			}
+			h.PubSubFeeds().Unsubscribe(ctx, ch)
 
 		case change := <-ch:
 			if change == nil {
@@ -46,6 +40,7 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 				Change: change,
 			}); err != nil {
 				log.Warn("failed to send feed change", zap.Error(err))
+				continue
 			}
 
 			log.Info("sent changes to client")

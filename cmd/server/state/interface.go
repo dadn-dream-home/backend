@@ -14,14 +14,18 @@ type State interface {
 }
 
 type PubSubValues interface {
+	Serve(ctx context.Context) error
+
+	// If err != nil, feedID doesn't exist
 	Subscribe(ctx context.Context, feedID string) (<-chan []byte, error)
-	Unsubscribe(ctx context.Context, feedID string, ch <-chan []byte) error
+
+	Unsubscribe(ctx context.Context, feedID string, ch <-chan []byte)
 	Publish(ctx context.Context, feedID string, value []byte) error
 }
 
 type PubSubFeeds interface {
-	Subscribe(ctx context.Context) (ch <-chan *pb.FeedsChange, err error)
-	Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange) error
+	Subscribe(ctx context.Context) <-chan *pb.FeedsChange
+	Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange)
 	CreateFeed(ctx context.Context, feed *pb.Feed) error
 	DeleteFeed(ctx context.Context, feedID string) error
 }
@@ -38,6 +42,7 @@ type Repository interface {
 }
 
 type Notifier interface {
+	Serve(ctx context.Context) error
 	Subscribe(ctx context.Context) (<-chan *pb.Notification, error)
-	Unsubscribe(ctx context.Context, ch <-chan *pb.Notification) error
+	Unsubscribe(ctx context.Context, ch <-chan *pb.Notification)
 }

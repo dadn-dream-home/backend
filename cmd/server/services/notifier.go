@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/dadn-dream-home/x/server/errutils"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	"go.uber.org/zap"
@@ -42,31 +43,35 @@ func (n *notifier) Subscribe(ctx context.Context) (<-chan *pb.Notification, erro
 	return ch, nil
 }
 
-func (n *notifier) Unsubscribe(ctx context.Context, ch <-chan *pb.Notification) error {
+func (n *notifier) Unsubscribe(ctx context.Context, ch <-chan *pb.Notification) {
 	n.Lock()
 	defer n.Unlock()
 
 	n.subscribers[ch] <- nil
 	delete(n.subscribers, ch)
-	return nil
 }
 
-func (n *notifier) Serve(ctx context.Context) {
+func (n *notifier) Serve(ctx context.Context) (err error) {
 	log := telemetry.GetLogger(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 
-	ch, err := n.State.PubSubFeeds().Subscribe(ctx)
-	if err != nil {
-		log.Fatal("failed to subscribe to feed changes", zap.Error(err))
-	}
+	defer func() {
+		cancel()
+		if err == nil {
+			err = recover().(error)
+		}
+	}()
+
+	ch := n.State.PubSubFeeds().Subscribe(ctx)
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Fatal("stopped notification service by context")
+			n.PubSubFeeds().Unsubscribe(ctx, ch)
 
 		case changes := <-ch:
 			if changes == nil {
-				log.Fatal("stopped notification service by nil changes")
+				return nil
 			}
 
 			for _, feed := range changes.Addeds {
@@ -77,13 +82,17 @@ func (n *notifier) Serve(ctx context.Context) {
 					continue
 				}
 
-				rx, err := n.subscribeToFeed(ctx, feed)
+				rx, err := n.subscribeToFeed(ctx, feed.Id)
 				if err != nil {
-					log.Fatal("stopped notification service", zap.Error(err))
+					return errutils.Internal(
+						fmt.Errorf("failed to subscribe to feed: %w", err))
 				}
 
-				go n.listenToFeed(ctx, feed, rx)
-
+				go func(feed *pb.Feed) {
+					if err := n.listenToFeed(ctx, feed, rx); err != nil {
+						panic(err)
+					}
+				}(feed)
 			}
 
 			for _, feedID := range changes.RemovedIDs {
@@ -92,41 +101,38 @@ func (n *notifier) Serve(ctx context.Context) {
 				if _, ok := n.listeners[feedID]; !ok {
 					continue
 				}
-				err := n.unsubscribeFromFeed(ctx, feedID)
-				if err != nil {
-					log.Fatal("stopped notification service", zap.Error(err))
-				}
+				n.unsubscribeFromFeed(ctx, feedID)
 			}
 		}
 	}
 }
 
-func (n *notifier) subscribeToFeed(ctx context.Context, feed *pb.Feed) (<-chan []byte, error) {
+func (n *notifier) subscribeToFeed(ctx context.Context, feedID string) (<-chan []byte, error) {
 	n.Lock()
 	defer n.Unlock()
 
-	rx, err := n.PubSubValues().Subscribe(ctx, feed.Id)
+	rx, err := n.PubSubValues().Subscribe(ctx, feedID)
 	if err != nil {
 		return nil, err
 	}
 
-	n.listeners[feed.Id] = rx
+	n.listeners[feedID] = rx
 
 	return rx, nil
 }
 
-func (n *notifier) listenToFeed(ctx context.Context, feed *pb.Feed, rx <-chan []byte) {
+func (n *notifier) listenToFeed(ctx context.Context, feed *pb.Feed, rx <-chan []byte) error {
 	log := telemetry.GetLogger(ctx)
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Fatal("stopped notification service by context")
+			n.PubSubValues().Unsubscribe(ctx, feed.Id, rx)
 
 		case payload := <-rx:
 			if payload == nil {
 				log.Info("stopped listener by feed removed")
-				return
+				return nil
 			}
 
 			lower := 10
@@ -160,7 +166,8 @@ func (n *notifier) listenToFeed(ctx context.Context, feed *pb.Feed, rx <-chan []
 
 			err = n.Repository().InsertNotification(ctx, notification)
 			if err != nil {
-				log.Fatal("error inserting notification", zap.Error(err))
+				return errutils.Internal(
+					fmt.Errorf("failed to insert notification: %w", err))
 			}
 
 			for _, ch := range n.subscribers {
@@ -170,15 +177,10 @@ func (n *notifier) listenToFeed(ctx context.Context, feed *pb.Feed, rx <-chan []
 	}
 }
 
-func (n *notifier) unsubscribeFromFeed(ctx context.Context, feedID string) error {
+func (n *notifier) unsubscribeFromFeed(ctx context.Context, feedID string) {
 	n.Lock()
 	defer n.Unlock()
 
-	if err := n.PubSubValues().Unsubscribe(ctx, feedID, n.listeners[feedID]); err != nil {
-		return err
-	}
-
+	n.PubSubValues().Unsubscribe(ctx, feedID, n.listeners[feedID])
 	delete(n.listeners, feedID)
-
-	return nil
 }

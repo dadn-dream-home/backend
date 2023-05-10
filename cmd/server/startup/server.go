@@ -89,6 +89,11 @@ func (s *Server) Notifier() state.Notifier {
 
 func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 	log := telemetry.GetLogger(ctx)
+	defer func() {
+		if err := recover(); err != nil {
+			log.Fatal("panic", zap.Any("error", err))
+		}
+	}()
 
 	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		interceptors.AddLoggerUnaryInterceptor,
@@ -100,8 +105,20 @@ func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 	pb.RegisterBackendServiceServer(grpcServer, s)
 	reflection.Register(grpcServer)
 
+	go func() {
+		if err := s.notifier.Serve(ctx); err != nil {
+			panic(err)
+		}
+	}()
+
+	go func() {
+		if err := s.pubSubValues.Serve(ctx); err != nil {
+			panic(err)
+		}
+	}()
+
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatal("failed to serve", zap.Error(err))
+		panic(err)
 	}
 }
 
@@ -112,7 +129,7 @@ func Listen(ctx context.Context, config ServerConfig) net.Listener {
 	if err != nil {
 		log.Fatal("failed to listen", zap.Error(err))
 	}
-	
+
 	log.Info("server listening", zap.String("address", lis.Addr().String()))
 
 	return lis

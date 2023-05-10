@@ -27,10 +27,7 @@ func (h StreamNotificationsHandler) StreamNotifications(req *pb.StreamNotificati
 		case <-ctx.Done():
 			log.Debug("cancelled streaming by client")
 
-			err := h.Notifier().Unsubscribe(ctx, ch)
-			if err != nil {
-				return err
-			}
+			h.Notifier().Unsubscribe(ctx, ch)
 
 		case notification := <-ch:
 			if notification == nil {

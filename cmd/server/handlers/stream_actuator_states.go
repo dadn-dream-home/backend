@@ -55,10 +55,7 @@ func (s StreamActuatorStatesHandler) StreamActuatorStates(
 		select {
 		case <-ctx.Done():
 			log.Debug("cancelled streaming by client")
-			err := s.PubSubValues().Unsubscribe(ctx, req.Feed.Id, ch)
-			if err != nil {
-				return err
-			}
+			s.PubSubValues().Unsubscribe(ctx, req.Feed.Id, ch)
 
 		case msg := <-ch:
 			if msg == nil {

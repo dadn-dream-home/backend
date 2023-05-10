@@ -51,10 +51,7 @@ func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamSensorValues
 		select {
 		case <-stream.Context().Done():
 			log.Debug("cancelled streaming by client")
-			err := s.PubSubValues().Unsubscribe(ctx, req.Feed.Id, ch)
-			if err != nil {
-				return err
-			}
+			s.PubSubValues().Unsubscribe(ctx, req.Feed.Id, ch)
 
 		case msg := <-ch:
 			if msg == nil {

@@ -33,34 +33,37 @@ func NewPubSubValues(ctx context.Context, state state.State, mqtt mqtt.Client) s
 	return ps
 }
 
-func (p *pubSubValues) listenToPubSubFeeds(ctx context.Context) {
+func (p *pubSubValues) Serve(ctx context.Context) error {
 	log := telemetry.GetLogger(ctx)
 
-	ch, err := p.PubSubFeeds().Subscribe(ctx)
-	if err != nil {
-		log.Fatal("failed to subscribe to feed changes", zap.Error(err))
-	}
+	ch := p.PubSubFeeds().Subscribe(ctx)
+
+	log.Info("started streaming")
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Fatal("context done")
+			p.PubSubFeeds().Unsubscribe(ctx, ch)
 
 		case change := <-ch:
 			if change == nil {
-				log.Info("stream ended")
-				return
+				log.Info("ended streaming")
+				return nil
 			}
 
 			for _, feed := range change.Addeds {
-				log = log.With(zap.String("feed", feed.Id))
+				log = log.With(zap.String("feed.id", feed.Id))
+				ctx = telemetry.ContextWithLogger(ctx, log)
+
 				if err := p.addFeed(ctx, feed.Id); err != nil {
 					log.Fatal("failed to add feed", zap.Error(err))
 				}
 				log.Info("added feed")
 			}
 			for _, feedID := range change.RemovedIDs {
-				log = log.With(zap.String("feed", feedID))
+				log = log.With(zap.String("feed.id", feedID))
+				ctx = telemetry.ContextWithLogger(ctx, log)
+
 				if err := p.removeFeed(ctx, feedID); err != nil {
 					log.Fatal("failed to remove feed", zap.Error(err))
 				}
@@ -101,33 +104,26 @@ func (p *pubSubValues) Subscribe(ctx context.Context, feedID string) (<-chan []b
 	return ch, nil
 }
 
-func (p *pubSubValues) Unsubscribe(ctx context.Context, feedID string, ch <-chan []byte) error {
+func (p *pubSubValues) Unsubscribe(ctx context.Context, feedID string, ch <-chan []byte) {
 	p.Lock()
 	defer p.Unlock()
 
 	log := telemetry.GetLogger(ctx)
 
-	if _, ok := p.subscribers[feedID]; !ok {
-		return errutils.NotFound(&errdetails.ResourceInfo{
-			ResourceType: "Feed",
-			ResourceName: feedID,
-			Description:  fmt.Sprintf("Feed '%s' cannot be found", feedID),
-		})
+	subscribers, ok := p.subscribers[feedID]
+	if !ok {
+		return
 	}
 
-	for rx, tx := range p.subscribers[feedID] {
+	for rx, tx := range subscribers {
 		if rx == ch {
 			tx <- nil
-			delete(p.subscribers[feedID], rx)
+			delete(subscribers, rx)
 			close(tx)
 
 			log.Info("unsubscribed from pubsub")
-
-			return nil
 		}
 	}
-
-	return errutils.Internal(fmt.Errorf("subscriber not found in feed %s", feedID))
 }
 
 // AddFeed subscribes to the MQTT feed
