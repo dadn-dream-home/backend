@@ -5,6 +5,7 @@ import (
 
 	"github.com/dadn-dream-home/x/server/telemetry"
 	"github.com/hashicorp/hcl/v2/hclsimple"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -30,12 +31,12 @@ func OpenConfig(ctx context.Context) *Config {
 	log := telemetry.GetLogger(ctx)
 
 	path := "config.hcl"
-	log = log.WithField("path", path)
+	log = log.With(zap.String("path", path))
 
 	var config Config
 	err := hclsimple.DecodeFile(path, nil, &config)
 	if err != nil {
-		log.WithError(err).Fatal("failed to load config")
+		log.Fatal("failed to load config", zap.Error(err))
 	}
 
 	log.Info("loaded config")

@@ -4,7 +4,10 @@ import (
 	"context"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
+	"go.uber.org/zap"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 
+	"github.com/dadn-dream-home/x/server/errutils"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
 )
@@ -14,15 +17,30 @@ type CreateFeedHandler struct {
 }
 
 func (h CreateFeedHandler) CreateFeed(ctx context.Context, req *pb.CreateFeedRequest) (res *pb.CreateFeedResponse, err error) {
-	log := telemetry.GetLogger(ctx).
-		WithField("feed_id", req.Feed.Id).
-		WithField("feed_type", req.Feed.Type)
-	ctx = telemetry.ContextWithLogger(ctx, log)
-	rid := telemetry.GetRequestId(ctx)
+	log := telemetry.GetLogger(ctx)
 
-	err = h.PubSubFeeds().CreateFeed(ctx, rid, req.Feed)
+	if req.Feed == nil {
+		return nil, errutils.InvalidArgument(&errdetails.BadRequest_FieldViolation{
+			Field:       "feed",
+			Description: "Request field 'feed' is nil, expected object",
+		})
+	}
+
+	if req.Feed.Id == "" {
+		return nil, errutils.InvalidArgument(&errdetails.BadRequest_FieldViolation{
+			Field:       "feed.id",
+			Description: "Request field 'feed.id' is empty, expected non-empty string",
+		})
+	}
+
+	log = log.With(
+		zap.String("feed.id", req.Feed.Id),
+		zap.String("feed.type", req.Feed.Type.String()),
+	)
+	ctx = telemetry.ContextWithLogger(ctx, log)
+
+	err = h.PubSubFeeds().CreateFeed(ctx, req.Feed)
 	if err != nil {
-		log.WithError(err).Errorf("error creating feed")
 		return nil, err
 	}
 

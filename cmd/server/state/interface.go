@@ -14,31 +14,30 @@ type State interface {
 }
 
 type PubSubValues interface {
-	Subscribe(ctx context.Context, sid string, feed string) (<-chan []byte, error)
-	SubscribeAll(ctx context.Context, sid string) (<-chan map[string][]byte, error)
-	Unsubscribe(ctx context.Context, sid string, feed string) error
-	Publish(ctx context.Context, sid string, feed string, value []byte) error
+	Subscribe(ctx context.Context, feedID string) (<-chan []byte, error)
+	Unsubscribe(ctx context.Context, feedID string, ch <-chan []byte) error
+	Publish(ctx context.Context, feedID string, value []byte) error
 }
 
 type PubSubFeeds interface {
-	Subscribe(ctx context.Context, sid string) (ch <-chan *pb.FeedsChange, err error)
-	Unsubscribe(ctx context.Context, sid string) error
-	CreateFeed(ctx context.Context, sid string, feed *pb.Feed) error
-	DeleteFeed(ctx context.Context, sid string, feed string) error
+	Subscribe(ctx context.Context) (ch <-chan *pb.FeedsChange, err error)
+	Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange) error
+	CreateFeed(ctx context.Context, feed *pb.Feed) error
+	DeleteFeed(ctx context.Context, feedID string) error
 }
 
 type Repository interface {
 	CreateFeed(ctx context.Context, feed *pb.Feed) error
-	GetFeed(ctx context.Context, id string) (*pb.Feed, error)
+	GetFeed(ctx context.Context, feedID string) (*pb.Feed, error)
 	ListFeeds(ctx context.Context) ([]*pb.Feed, error)
-	DeleteFeed(ctx context.Context, id string) error
-	InsertFeedValue(ctx context.Context, feed string, value []byte) error
-	GetFeedLatestValue(ctx context.Context, feed string) ([]byte, error)
+	DeleteFeed(ctx context.Context, feedID string) error
+	InsertFeedValue(ctx context.Context, feedID string, value []byte) error
+	GetFeedLatestValue(ctx context.Context, feedID string) ([]byte, error)
 	InsertNotification(ctx context.Context, notification *pb.Notification) error
-	GetLatestNotification(ctx context.Context, feed string) (*pb.Notification, error)
+	GetLatestNotification(ctx context.Context, feedID string) (*pb.Notification, error)
 }
 
 type Notifier interface {
-	Subscribe(ctx context.Context, sid string) (<-chan *pb.Notification, error)
-	Unsubscribe(ctx context.Context, sid string) error
+	Subscribe(ctx context.Context) (<-chan *pb.Notification, error)
+	Unsubscribe(ctx context.Context, ch <-chan *pb.Notification) error
 }

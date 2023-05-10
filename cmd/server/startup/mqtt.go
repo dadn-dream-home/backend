@@ -5,6 +5,7 @@ import (
 
 	"github.com/dadn-dream-home/x/server/telemetry"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"go.uber.org/zap"
 )
 
 func ConnectMQTT(ctx context.Context, config MQTTConfig) mqtt.Client {
@@ -14,19 +15,17 @@ func ConnectMQTT(ctx context.Context, config MQTTConfig) mqtt.Client {
 
 	for _, broker := range config.Brokers {
 		options.AddBroker(broker)
-		
-		log.WithField("broker", broker).
-			Infof("added mqtt broker")
+
+		log.Info("added mqtt broker", zap.String("broker", broker))
 	}
 
 	client := mqtt.NewClient(options)
 
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		log.WithError(token.Error()).
-			Fatal("failed to connect to mqtt brokers")
+		log.Fatal("failed to connect to mqtt brokers", zap.Error(token.Error()))
 	}
 
-	log.Infof("connected to mqtt brokers")
+	log.Info("connected to mqtt brokers")
 
 	return client
 }

@@ -2,12 +2,12 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
+	"go.uber.org/zap"
 )
 
 type pubSubFeeds struct {
@@ -15,103 +15,97 @@ type pubSubFeeds struct {
 
 	state.State
 
-	subscribers map[string]pubSubFeedsSubscriber
-}
-
-type pubSubFeedsSubscriber struct {
-	id string
-	ch chan<- *pb.FeedsChange
+	subscribers map[<-chan *pb.FeedsChange]chan<- *pb.FeedsChange
 }
 
 func NewPubSubFeeds(ctx context.Context, state state.State) state.PubSubFeeds {
 	return &pubSubFeeds{
 		State:       state,
-		subscribers: make(map[string]pubSubFeedsSubscriber),
+		subscribers: make(map[<-chan *pb.FeedsChange]chan<- *pb.FeedsChange),
 	}
 }
 
-func (p *pubSubFeeds) Subscribe(ctx context.Context, id string) (<-chan *pb.FeedsChange, error) {
+func (p *pubSubFeeds) Subscribe(ctx context.Context) (<-chan *pb.FeedsChange, error) {
 	p.Lock()
 	defer p.Unlock()
 
-	log := telemetry.GetLogger(ctx).WithField("subscriber_id", id)
+	log := telemetry.GetLogger(ctx)
 
-	ch := make(chan *pb.FeedsChange, 1)
+	ch := make(chan *pb.FeedsChange)
 
-	p.subscribers[id] = pubSubFeedsSubscriber{
-		id: id,
-		ch: ch,
-	}
+	p.subscribers[ch] = ch
 
 	// send initial list of feeds
 	go func() {
 		feeds, err := p.Repository().ListFeeds(ctx)
 		if err != nil {
-			log.WithError(err).Fatalf("failed to list feeds")
+			log.Fatal("failed to list feeds", zap.Error(err))
 		}
 
-		ch <- &pb.FeedsChange{Added: feeds}
+		ch <- &pb.FeedsChange{Addeds: feeds}
+
 		if err != nil {
-			log.WithError(err).Fatalf("failed to send initial list of feeds")
+			log.Fatal("failed to send initial list of feeds", zap.Error(err))
 		}
 	}()
 
-	log.Infof("subscribed to pub sub feeds")
+	log.Info("subscribed to pub sub feeds")
 
 	return ch, nil
 }
 
-func (p *pubSubFeeds) Unsubscribe(ctx context.Context, id string) error {
-	log := telemetry.GetLogger(ctx).WithField("subscriber_id", id)
-
+func (p *pubSubFeeds) Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange) error {
 	p.Lock()
-	p.subscribers[id].ch <- nil
-	delete(p.subscribers, id)
-	p.Unlock()
+	defer p.Unlock()
 
-	log.Infof("unsubscribed from pub sub feeds")
+	log := telemetry.GetLogger(ctx)
 
-	return nil
-}
+	p.subscribers[ch] <- nil
+	delete(p.subscribers, ch)
 
-func (p *pubSubFeeds) CreateFeed(ctx context.Context, id string, feed *pb.Feed) error {
-	log := telemetry.GetLogger(ctx).WithField("id", id).WithField("feed", feed)
-
-	err := p.Repository().CreateFeed(ctx, feed)
-	if err != nil {
-		return fmt.Errorf("failed to create feed: %w", err)
-	}
-
-	p.RLock()
-	for _, subscriber := range p.subscribers {
-		subscriber.ch <- &pb.FeedsChange{
-			Added: []*pb.Feed{feed},
-		}
-	}
-	p.RUnlock()
-
-	log.Infof("created feed")
+	log.Info("unsubscribed from pub sub feeds")
 
 	return nil
 }
 
-func (p *pubSubFeeds) DeleteFeed(ctx context.Context, id string, feed string) error {
-	log := telemetry.GetLogger(ctx).WithField("id", id).WithField("feed", feed)
+func (p *pubSubFeeds) CreateFeed(ctx context.Context, feed *pb.Feed) error {
+	p.RLock()
+	defer p.RUnlock()
 
-	err := p.Repository().DeleteFeed(ctx, feed)
-	if err != nil {
-		return fmt.Errorf("failed to delete feed: %w", err)
+	log := telemetry.GetLogger(ctx)
+
+	if err := p.Repository().CreateFeed(ctx, feed); err != nil {
+		return err
 	}
 
-	p.RLock()
 	for _, subscriber := range p.subscribers {
-		subscriber.ch <- &pb.FeedsChange{
-			Removed: []string{feed},
+		subscriber <- &pb.FeedsChange{
+			Addeds: []*pb.Feed{feed},
 		}
 	}
-	p.RUnlock()
 
-	log.Infof("deleted feed")
+	log.Info("created feed")
+
+	return nil
+}
+
+func (p *pubSubFeeds) DeleteFeed(ctx context.Context, feedID string) error {
+	p.RLock()
+	defer p.RUnlock()
+
+	log := telemetry.GetLogger(ctx)
+
+	if err := p.Repository().DeleteFeed(ctx, feedID); err != nil {
+		return err
+	}
+
+	for _, subscriber := range p.subscribers {
+		subscriber <- &pb.FeedsChange{
+			RemovedIDs: []string{feedID},
+		}
+	}
+
+	log.Info("deleted feed")
 
 	return nil
 }

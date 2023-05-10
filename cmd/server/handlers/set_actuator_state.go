@@ -5,6 +5,9 @@ import (
 
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
+	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
 )
@@ -14,9 +17,15 @@ type SetActuatorStateHandler struct {
 }
 
 func (h SetActuatorStateHandler) SetActuatorState(ctx context.Context, req *pb.SetActuatorStateRequest) (*pb.SetActuatorStateResponse, error) {
-	log := telemetry.GetLogger(ctx).WithField("feed_id", req.Feed.Id)
+	log := telemetry.GetLogger(ctx)
+
+	if req.Feed == nil {
+		log.Error("feed is nil")
+		return nil, status.Error(codes.InvalidArgument, "feed cannot be nil")
+	}
+
+	log = log.With(zap.String("feed.id", req.Feed.Id))
 	ctx = telemetry.ContextWithLogger(ctx, log)
-	rid := telemetry.GetRequestId(ctx)
 
 	var payload []byte
 	if req.State {
@@ -25,9 +34,8 @@ func (h SetActuatorStateHandler) SetActuatorState(ctx context.Context, req *pb.S
 		payload = []byte("0")
 	}
 
-	err := h.PubSubValues().Publish(ctx, rid, req.Feed.Id, payload)
+	err := h.PubSubValues().Publish(ctx, req.Feed.Id, payload)
 	if err != nil {
-		log.WithError(err).Errorf("error setting actuator state")
 		return nil, err
 	}
 

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	pb "github.com/dadn-dream-home/x/protobuf"
+	"go.uber.org/zap"
 
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
@@ -13,51 +14,67 @@ type StreamActuatorStatesHandler struct {
 	state.State
 }
 
-func (s StreamActuatorStatesHandler) StreamActuatorStates(req *pb.StreamActuatorStatesRequest, stream pb.BackendService_StreamActuatorStatesServer) error {
+func (s StreamActuatorStatesHandler) StreamActuatorStates(
+	req *pb.StreamActuatorStatesRequest,
+	stream pb.BackendService_StreamActuatorStatesServer,
+) error {
 	ctx := stream.Context()
-	rid := telemetry.GetRequestId(ctx)
-	log := telemetry.GetLogger(ctx).WithField("feed_id", req.Id)
+	log := telemetry.GetLogger(ctx)
 
-	feed, err := s.Repository().GetFeed(ctx, req.Id)
+	// validate request
+
+	if req.Feed == nil {
+		log.Error("feed is nil")
+		return status.Error(codes.InvalidArgument, "feed cannot be nil")
+	}
+
+	log = log.With(zap.String("feed.id", req.Feed.Id))
+	ctx = telemetry.ContextWithLogger(ctx, log)
+
+	feed, err := s.Repository().GetFeed(ctx, req.Feed.Id)
 	if err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return err
 	}
 
 	switch feed.Type {
 	case pb.FeedType_LIGHT:
 		// ok
 	default:
+		log.Error("feed type is not actuator", zap.String("feed.type", feed.Type.String()))
 		return status.Errorf(codes.InvalidArgument, "feed type %s is not actuator", feed.Type)
 	}
 
-	ch, err := s.PubSubValues().Subscribe(ctx, rid, req.Id)
+	ch, err := s.PubSubValues().Subscribe(ctx, req.Feed.Id)
 	if err != nil {
 		return err
 	}
 
-	log.Debugf("begin streaming")
+	log.Info("begin streaming")
 
 	for {
 		select {
-		case <-stream.Context().Done():
-			log.Tracef("<-stream.Context().Done()")
-			err := s.PubSubValues().Unsubscribe(ctx, rid, req.Id)
+		case <-ctx.Done():
+			log.Debug("cancelled streaming by client")
+			err := s.PubSubValues().Unsubscribe(ctx, req.Feed.Id, ch)
 			if err != nil {
-				log.WithError(err).Warnf("error unsubscribing from feed")
+				return err
 			}
 
 		case msg := <-ch:
 			if msg == nil {
-				log.Infof("streaming finished")
+				log.Info("end streaming")
 				return nil
 			}
 
-			err = stream.Send(&pb.StreamActuatorStatesResponse{
-				State: string(msg) != "0",
-			})
-			if err != nil {
-				return err
+			state := string(msg) != "0"
+
+			if err = stream.Send(&pb.StreamActuatorStatesResponse{
+				State: state,
+			}); err != nil {
+				log.Warn("error sending response", zap.Error(err))
 			}
+
+			log.Info("sent state to client", zap.Bool("state", state))
 		}
 	}
 }

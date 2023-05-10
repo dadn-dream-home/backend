@@ -2,6 +2,7 @@ package handlers
 
 import (
 	pb "github.com/dadn-dream-home/x/protobuf"
+	"go.uber.org/zap"
 
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
@@ -16,37 +17,38 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 	stream pb.BackendService_StreamFeedsChangesServer,
 ) error {
 	ctx := stream.Context()
-	rid := telemetry.GetRequestId(ctx)
 	log := telemetry.GetLogger(ctx)
 
-	log.Infof("streaming feed changes")
-
-	ch, err := h.PubSubFeeds().Subscribe(ctx, rid)
+	ch, err := h.PubSubFeeds().Subscribe(ctx)
 	if err != nil {
-		log.WithError(err).Errorf("failed to subscribe to pub sub feeds")
 		return err
 	}
+
+	log.Info("started streaming")
 
 	for {
 		select {
 		case <-stream.Context().Done():
-			log.Tracef("<-stream.Context().Done()")
-			err := h.PubSubFeeds().Unsubscribe(ctx, rid)
+			log.Debug("cancelled streaming by client")
+
+			err := h.PubSubFeeds().Unsubscribe(ctx, ch)
 			if err != nil {
-				log.WithError(err).Errorf("error unsubscribing from feeds")
+				return nil
 			}
 
 		case change := <-ch:
 			if change == nil {
+				log.Debug("ended streaming")
 				return nil
 			}
 
 			if err := stream.Send(&pb.StreamFeedsChangesResponse{
 				Change: change,
 			}); err != nil {
-				log.WithError(err).Errorf("failed to send feed change")
-				return err
+				log.Warn("failed to send feed change", zap.Error(err))
 			}
+
+			log.Info("sent changes to client")
 		}
 	}
 }

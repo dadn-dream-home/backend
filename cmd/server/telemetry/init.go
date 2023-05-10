@@ -2,32 +2,15 @@ package telemetry
 
 import (
 	"context"
-	"os"
-	"path"
-	"runtime"
-	"strconv"
 
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 func InitLogger(ctx context.Context) context.Context {
-	log := logrus.New()
-
-	if level, err := logrus.ParseLevel(os.Getenv("GO_LOG")); err == nil {
-		log.SetLevel(level)
-	} else {
-		log.SetLevel(logrus.DebugLevel)
+	log, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
 	}
 
-	log.SetFormatter(&logrus.TextFormatter{
-		ForceColors:   true,
-		FullTimestamp: false,
-		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
-			// log filename and linenumber only
-			fileName := path.Base(f.File) + ":" + strconv.Itoa(f.Line)
-			return "", fileName
-		},
-	})
-	log.SetReportCaller(true)
-	return ContextWithLogger(ctx, log.WithContext(ctx))
+	return ContextWithLogger(ctx, log)
 }

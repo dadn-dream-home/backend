@@ -27,11 +27,11 @@ service BackendService {
       returns (stream StreamNotificationsResponse);
 }
 
-message StreamSensorValuesRequest { string id = 1; }
+message StreamSensorValuesRequest { Feed feed = 1; }
 
 message StreamSensorValuesResponse { float value = 1; }
 
-message StreamActuatorStatesRequest { string id = 1; }
+message StreamActuatorStatesRequest { Feed feed = 1; }
 
 message StreamActuatorStatesResponse { bool state = 1; }
 
@@ -43,7 +43,7 @@ message CreateFeedRequest { Feed feed = 1; }
 
 message CreateFeedResponse {}
 
-message DeleteFeedRequest { string id = 1; }
+message DeleteFeedRequest { Feed feed = 1; }
 
 message DeleteFeedResponse {}
 
@@ -54,7 +54,7 @@ message SetActuatorStateRequest {
 
 message SetActuatorStateResponse {}
 
-message StreamNotificationsRequest { string id = 1; }
+message StreamNotificationsRequest { Feed feed = 1; }
 
 message StreamNotificationsResponse { Notification notification = 1; }
 
@@ -73,8 +73,8 @@ message Feed {
 }
 
 message FeedsChange {
-  repeated Feed added = 1;
-  repeated string removed = 2;
+  repeated Feed addeds = 1;
+  repeated string removedIDs = 2;
 }
 
 message Config {

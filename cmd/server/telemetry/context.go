@@ -3,7 +3,7 @@ package telemetry
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type contextKey int
@@ -13,11 +13,11 @@ const (
 	RequestIdKey
 )
 
-func GetLogger(ctx context.Context) *logrus.Entry {
-	return ctx.Value(LoggerKey).(*logrus.Entry)
+func GetLogger(ctx context.Context) *zap.Logger {
+	return ctx.Value(LoggerKey).(*zap.Logger)
 }
 
-func ContextWithLogger(ctx context.Context, logger *logrus.Entry) context.Context {
+func ContextWithLogger(ctx context.Context, logger *zap.Logger) context.Context {
 	return context.WithValue(ctx, LoggerKey, logger)
 }
 

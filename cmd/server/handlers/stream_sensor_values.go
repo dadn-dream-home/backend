@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
+	"go.uber.org/zap"
 
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
@@ -17,53 +18,60 @@ type StreamSensorValuesHandler struct {
 
 func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamSensorValuesRequest, stream pb.BackendService_StreamSensorValuesServer) error {
 	ctx := stream.Context()
-	rid := telemetry.GetRequestId(ctx)
-	log := telemetry.GetLogger(ctx).WithField("feed_id", req.Id)
+	log := telemetry.GetLogger(ctx)
 
-	feed, err := s.Repository().GetFeed(ctx, req.Id)
+	if req.Feed == nil {
+		log.Error("feed is nil")
+		return status.Error(codes.InvalidArgument, "feed cannot be nil")
+	}
+
+	log = log.With(zap.String("feed.id", req.Feed.Id))
+
+	feed, err := s.Repository().GetFeed(ctx, req.Feed.Id)
 	if err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return err
 	}
 
 	switch feed.Type {
 	case pb.FeedType_TEMPERATURE, pb.FeedType_HUMIDITY:
 		// ok
 	default:
+		log.Error("feed type is not sensor", zap.String("feed.type", feed.Type.String()))
 		return status.Errorf(codes.InvalidArgument, "feed type %s is not sensor", feed.Type)
 	}
 
-	ch, err := s.PubSubValues().Subscribe(ctx, rid, req.Id)
+	ch, err := s.PubSubValues().Subscribe(ctx, req.Feed.Id)
 	if err != nil {
 		return err
 	}
 
-	log.Debugf("begin streaming")
+	log.Info("started streaming")
 
 	for {
 		select {
 		case <-stream.Context().Done():
-			log.Tracef("<-stream.Context().Done()")
-			err := s.PubSubValues().Unsubscribe(ctx, rid, req.Id)
+			log.Debug("cancelled streaming by client")
+			err := s.PubSubValues().Unsubscribe(ctx, req.Feed.Id, ch)
 			if err != nil {
-				log.WithError(err).Warnf("error unsubscribing from feed")
+				return err
 			}
 
 		case msg := <-ch:
 			if msg == nil {
-				log.Infof("streaming finished")
+				log.Info("ended streaming")
 				return nil
 			}
 
-			value, err := strconv.ParseFloat(string(msg), 32)
-			if err != nil {
-				log.WithError(err).Warnf("error parsing float %s: %w", string(msg))
+			var value float64
+			if value, err = strconv.ParseFloat(string(msg), 32); err != nil {
+				log.Warn("error parsing float", zap.Error(err), zap.String("value", string(msg)))
 				continue
 			}
-			err = stream.Send(&pb.StreamSensorValuesResponse{
+
+			if err = stream.Send(&pb.StreamSensorValuesResponse{
 				Value: float32(value),
-			})
-			if err != nil {
-				return err
+			}); err != nil {
+				log.Warn("error sending message", zap.Error(err))
 			}
 		}
 	}

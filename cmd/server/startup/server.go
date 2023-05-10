@@ -13,6 +13,7 @@ import (
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -100,7 +101,7 @@ func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 	reflection.Register(grpcServer)
 
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.Fatal("failed to serve", zap.Error(err))
 	}
 }
 
@@ -109,9 +110,10 @@ func Listen(ctx context.Context, config ServerConfig) net.Listener {
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", config.Port))
 	if err != nil {
-		log.WithError(err).Fatalf("failed to listen")
+		log.Fatal("failed to listen", zap.Error(err))
 	}
-	log.WithField("addr", lis.Addr()).Infof("server listening")
+	
+	log.Info("server listening", zap.String("address", lis.Addr().String()))
 
 	return lis
 }
