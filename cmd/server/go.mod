@@ -5,6 +5,7 @@ go 1.20
 replace github.com/dadn-dream-home/x/protobuf => ../../protobuf
 
 require (
+	github.com/avast/retry-go/v4 v4.3.4
 	github.com/dadn-dream-home/x/protobuf v1.0.0
 	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/golang-migrate/migrate/v4 v4.15.2
@@ -20,7 +21,6 @@ require (
 require (
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
-	github.com/avast/retry-go/v4 v4.3.4 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect

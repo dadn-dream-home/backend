@@ -3,6 +3,7 @@ package startup
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -23,6 +24,7 @@ import (
 
 type Server struct {
 	pb.UnsafeBackendServiceServer
+	grpcServer *grpc.Server
 
 	handlers.CreateFeedHandler
 	handlers.DeleteFeedHandler
@@ -91,15 +93,15 @@ func (s *Server) Notifier() state.Notifier {
 func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 	log := telemetry.GetLogger(ctx)
 
-	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
+	s.grpcServer = grpc.NewServer(grpc.ChainUnaryInterceptor(
 		interceptors.AddLoggerUnaryInterceptor,
 		interceptors.RequestIdUnaryInterceptor,
 	), grpc.ChainStreamInterceptor(
 		interceptors.AddLoggerStreamInterceptor,
 		interceptors.RequestIdStreamInterceptor,
 	))
-	pb.RegisterBackendServiceServer(grpcServer, s)
-	reflection.Register(grpcServer)
+	pb.RegisterBackendServiceServer(s.grpcServer, s)
+	reflection.Register(s.grpcServer)
 
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error {
@@ -108,17 +110,22 @@ func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 	group.Go(func() error {
 		return s.notifier.Serve(ctx)
 	})
-	go func() error {
-		if err := grpcServer.Serve(lis); err != nil {
+	go func() {
+		if err := s.grpcServer.Serve(lis); err != nil {
 			group.Go(func() error { return err })
+		} else {
+			group.Go(func() error { return context.Canceled })
 		}
-		return nil
 	}()
 
-	if err := group.Wait(); err != nil {
-		grpcServer.Stop()
+	if err := group.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		s.grpcServer.Stop()
 		log.Fatal("server error", zap.Error(err))
 	}
+}
+
+func (s *Server) Stop() {
+	s.grpcServer.Stop()
 }
 
 func Listen(ctx context.Context, config ServerConfig) net.Listener {
