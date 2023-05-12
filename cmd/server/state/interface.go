@@ -39,6 +39,8 @@ type Repository interface {
 	GetFeedLatestValue(ctx context.Context, feedID string) ([]byte, error)
 	InsertNotification(ctx context.Context, notification *pb.Notification) error
 	GetLatestNotification(ctx context.Context, feedID string) (*pb.Notification, error)
+	GetFeedConfig(ctx context.Context, feedID string) (*pb.Config, error)
+	UpdateFeedConfig(ctx context.Context, config *pb.Config) error
 }
 
 type Notifier interface {

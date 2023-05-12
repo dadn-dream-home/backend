@@ -33,6 +33,8 @@ type Server struct {
 	handlers.StreamFeedsChangesHandler
 	handlers.SetActuatorStateHandler
 	handlers.StreamNotificationsHandler
+	handlers.GetFeedConfigHandler
+	handlers.UpdateFeedConfigHandler
 
 	pubSubValues state.PubSubValues
 	pubSubFeeds  state.PubSubFeeds
@@ -64,6 +66,8 @@ func NewServer(ctx context.Context, db *sql.DB, mqtt mqtt.Client) *Server {
 		reflect.TypeOf(s.StreamFeedsChangesHandler),
 		reflect.TypeOf(s.SetActuatorStateHandler),
 		reflect.TypeOf(s.StreamNotificationsHandler),
+		reflect.TypeOf(s.GetFeedConfigHandler),
+		reflect.TypeOf(s.UpdateFeedConfigHandler),
 	} {
 		serviceHandlerValue := serviceValue.Elem().FieldByName(handlerType.Name())
 		handlerValue := reflect.New(handlerType)

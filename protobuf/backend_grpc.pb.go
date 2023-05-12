@@ -29,6 +29,8 @@ type BackendServiceClient interface {
 	DeleteFeed(ctx context.Context, in *DeleteFeedRequest, opts ...grpc.CallOption) (*DeleteFeedResponse, error)
 	SetActuatorState(ctx context.Context, in *SetActuatorStateRequest, opts ...grpc.CallOption) (*SetActuatorStateResponse, error)
 	StreamNotifications(ctx context.Context, in *StreamNotificationsRequest, opts ...grpc.CallOption) (BackendService_StreamNotificationsClient, error)
+	UpdateFeedConfig(ctx context.Context, in *UpdateFeedConfigRequest, opts ...grpc.CallOption) (*UpdateFeedConfigResponse, error)
+	GetFeedConfig(ctx context.Context, in *GetFeedConfigRequest, opts ...grpc.CallOption) (*GetFeedConfigResponse, error)
 }
 
 type backendServiceClient struct {
@@ -194,6 +196,24 @@ func (x *backendServiceStreamNotificationsClient) Recv() (*StreamNotificationsRe
 	return m, nil
 }
 
+func (c *backendServiceClient) UpdateFeedConfig(ctx context.Context, in *UpdateFeedConfigRequest, opts ...grpc.CallOption) (*UpdateFeedConfigResponse, error) {
+	out := new(UpdateFeedConfigResponse)
+	err := c.cc.Invoke(ctx, "/protobuf.BackendService/UpdateFeedConfig", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backendServiceClient) GetFeedConfig(ctx context.Context, in *GetFeedConfigRequest, opts ...grpc.CallOption) (*GetFeedConfigResponse, error) {
+	out := new(GetFeedConfigResponse)
+	err := c.cc.Invoke(ctx, "/protobuf.BackendService/GetFeedConfig", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BackendServiceServer is the server API for BackendService service.
 // All implementations must embed UnimplementedBackendServiceServer
 // for forward compatibility
@@ -205,6 +225,8 @@ type BackendServiceServer interface {
 	DeleteFeed(context.Context, *DeleteFeedRequest) (*DeleteFeedResponse, error)
 	SetActuatorState(context.Context, *SetActuatorStateRequest) (*SetActuatorStateResponse, error)
 	StreamNotifications(*StreamNotificationsRequest, BackendService_StreamNotificationsServer) error
+	UpdateFeedConfig(context.Context, *UpdateFeedConfigRequest) (*UpdateFeedConfigResponse, error)
+	GetFeedConfig(context.Context, *GetFeedConfigRequest) (*GetFeedConfigResponse, error)
 	mustEmbedUnimplementedBackendServiceServer()
 }
 
@@ -232,6 +254,12 @@ func (UnimplementedBackendServiceServer) SetActuatorState(context.Context, *SetA
 }
 func (UnimplementedBackendServiceServer) StreamNotifications(*StreamNotificationsRequest, BackendService_StreamNotificationsServer) error {
 	return status.Errorf(codes.Unimplemented, "method StreamNotifications not implemented")
+}
+func (UnimplementedBackendServiceServer) UpdateFeedConfig(context.Context, *UpdateFeedConfigRequest) (*UpdateFeedConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateFeedConfig not implemented")
+}
+func (UnimplementedBackendServiceServer) GetFeedConfig(context.Context, *GetFeedConfigRequest) (*GetFeedConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFeedConfig not implemented")
 }
 func (UnimplementedBackendServiceServer) mustEmbedUnimplementedBackendServiceServer() {}
 
@@ -384,6 +412,42 @@ func (x *backendServiceStreamNotificationsServer) Send(m *StreamNotificationsRes
 	return x.ServerStream.SendMsg(m)
 }
 
+func _BackendService_UpdateFeedConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateFeedConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BackendServiceServer).UpdateFeedConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protobuf.BackendService/UpdateFeedConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BackendServiceServer).UpdateFeedConfig(ctx, req.(*UpdateFeedConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BackendService_GetFeedConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFeedConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BackendServiceServer).GetFeedConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protobuf.BackendService/GetFeedConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BackendServiceServer).GetFeedConfig(ctx, req.(*GetFeedConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BackendService_ServiceDesc is the grpc.ServiceDesc for BackendService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -402,6 +466,14 @@ var BackendService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetActuatorState",
 			Handler:    _BackendService_SetActuatorState_Handler,
+		},
+		{
+			MethodName: "UpdateFeedConfig",
+			Handler:    _BackendService_UpdateFeedConfig_Handler,
+		},
+		{
+			MethodName: "GetFeedConfig",
+			Handler:    _BackendService_GetFeedConfig_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

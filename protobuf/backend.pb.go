@@ -700,6 +700,185 @@ func (x *StreamNotificationsResponse) GetNotification() *Notification {
 	return nil
 }
 
+type UpdateFeedConfigRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Config *Config `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+}
+
+func (x *UpdateFeedConfigRequest) Reset() {
+	*x = UpdateFeedConfigRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protobuf_backend_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *UpdateFeedConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateFeedConfigRequest) ProtoMessage() {}
+
+func (x *UpdateFeedConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_protobuf_backend_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateFeedConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpdateFeedConfigRequest) Descriptor() ([]byte, []int) {
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *UpdateFeedConfigRequest) GetConfig() *Config {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateFeedConfigResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *UpdateFeedConfigResponse) Reset() {
+	*x = UpdateFeedConfigResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protobuf_backend_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *UpdateFeedConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateFeedConfigResponse) ProtoMessage() {}
+
+func (x *UpdateFeedConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_protobuf_backend_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateFeedConfigResponse.ProtoReflect.Descriptor instead.
+func (*UpdateFeedConfigResponse) Descriptor() ([]byte, []int) {
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{15}
+}
+
+type GetFeedConfigRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Feed *Feed `protobuf:"bytes,1,opt,name=feed,proto3" json:"feed,omitempty"`
+}
+
+func (x *GetFeedConfigRequest) Reset() {
+	*x = GetFeedConfigRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protobuf_backend_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetFeedConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFeedConfigRequest) ProtoMessage() {}
+
+func (x *GetFeedConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_protobuf_backend_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFeedConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetFeedConfigRequest) Descriptor() ([]byte, []int) {
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetFeedConfigRequest) GetFeed() *Feed {
+	if x != nil {
+		return x.Feed
+	}
+	return nil
+}
+
+type GetFeedConfigResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Config *Config `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+}
+
+func (x *GetFeedConfigResponse) Reset() {
+	*x = GetFeedConfigResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protobuf_backend_proto_msgTypes[17]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetFeedConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFeedConfigResponse) ProtoMessage() {}
+
+func (x *GetFeedConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_protobuf_backend_proto_msgTypes[17]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFeedConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetFeedConfigResponse) Descriptor() ([]byte, []int) {
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetFeedConfigResponse) GetConfig() *Config {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
 type Feed struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -713,7 +892,7 @@ type Feed struct {
 func (x *Feed) Reset() {
 	*x = Feed{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protobuf_backend_proto_msgTypes[14]
+		mi := &file_protobuf_backend_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -726,7 +905,7 @@ func (x *Feed) String() string {
 func (*Feed) ProtoMessage() {}
 
 func (x *Feed) ProtoReflect() protoreflect.Message {
-	mi := &file_protobuf_backend_proto_msgTypes[14]
+	mi := &file_protobuf_backend_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -739,7 +918,7 @@ func (x *Feed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Feed.ProtoReflect.Descriptor instead.
 func (*Feed) Descriptor() ([]byte, []int) {
-	return file_protobuf_backend_proto_rawDescGZIP(), []int{14}
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Feed) GetId() string {
@@ -775,7 +954,7 @@ type FeedsChange struct {
 func (x *FeedsChange) Reset() {
 	*x = FeedsChange{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protobuf_backend_proto_msgTypes[15]
+		mi := &file_protobuf_backend_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -788,7 +967,7 @@ func (x *FeedsChange) String() string {
 func (*FeedsChange) ProtoMessage() {}
 
 func (x *FeedsChange) ProtoReflect() protoreflect.Message {
-	mi := &file_protobuf_backend_proto_msgTypes[15]
+	mi := &file_protobuf_backend_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -801,7 +980,7 @@ func (x *FeedsChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeedsChange.ProtoReflect.Descriptor instead.
 func (*FeedsChange) Descriptor() ([]byte, []int) {
-	return file_protobuf_backend_proto_rawDescGZIP(), []int{15}
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *FeedsChange) GetAddeds() []*Feed {
@@ -834,7 +1013,7 @@ type Config struct {
 func (x *Config) Reset() {
 	*x = Config{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protobuf_backend_proto_msgTypes[16]
+		mi := &file_protobuf_backend_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -847,7 +1026,7 @@ func (x *Config) String() string {
 func (*Config) ProtoMessage() {}
 
 func (x *Config) ProtoReflect() protoreflect.Message {
-	mi := &file_protobuf_backend_proto_msgTypes[16]
+	mi := &file_protobuf_backend_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -860,7 +1039,7 @@ func (x *Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Config.ProtoReflect.Descriptor instead.
 func (*Config) Descriptor() ([]byte, []int) {
-	return file_protobuf_backend_proto_rawDescGZIP(), []int{16}
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Config) GetFeedConfig() *Feed {
@@ -920,7 +1099,7 @@ type SensorConfig struct {
 func (x *SensorConfig) Reset() {
 	*x = SensorConfig{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protobuf_backend_proto_msgTypes[17]
+		mi := &file_protobuf_backend_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -933,7 +1112,7 @@ func (x *SensorConfig) String() string {
 func (*SensorConfig) ProtoMessage() {}
 
 func (x *SensorConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_protobuf_backend_proto_msgTypes[17]
+	mi := &file_protobuf_backend_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -946,7 +1125,7 @@ func (x *SensorConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SensorConfig.ProtoReflect.Descriptor instead.
 func (*SensorConfig) Descriptor() ([]byte, []int) {
-	return file_protobuf_backend_proto_rawDescGZIP(), []int{17}
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SensorConfig) GetHasNotification() bool {
@@ -983,7 +1162,7 @@ type ActuatorConfig struct {
 func (x *ActuatorConfig) Reset() {
 	*x = ActuatorConfig{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protobuf_backend_proto_msgTypes[18]
+		mi := &file_protobuf_backend_proto_msgTypes[22]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -996,7 +1175,7 @@ func (x *ActuatorConfig) String() string {
 func (*ActuatorConfig) ProtoMessage() {}
 
 func (x *ActuatorConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_protobuf_backend_proto_msgTypes[18]
+	mi := &file_protobuf_backend_proto_msgTypes[22]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1009,7 +1188,7 @@ func (x *ActuatorConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActuatorConfig.ProtoReflect.Descriptor instead.
 func (*ActuatorConfig) Descriptor() ([]byte, []int) {
-	return file_protobuf_backend_proto_rawDescGZIP(), []int{18}
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ActuatorConfig) GetAutomatic() bool {
@@ -1046,7 +1225,7 @@ type Notification struct {
 func (x *Notification) Reset() {
 	*x = Notification{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protobuf_backend_proto_msgTypes[19]
+		mi := &file_protobuf_backend_proto_msgTypes[23]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1059,7 +1238,7 @@ func (x *Notification) String() string {
 func (*Notification) ProtoMessage() {}
 
 func (x *Notification) ProtoReflect() protoreflect.Message {
-	mi := &file_protobuf_backend_proto_msgTypes[19]
+	mi := &file_protobuf_backend_proto_msgTypes[23]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1072,7 +1251,7 @@ func (x *Notification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Notification.ProtoReflect.Descriptor instead.
 func (*Notification) Descriptor() ([]byte, []int) {
-	return file_protobuf_backend_proto_rawDescGZIP(), []int{19}
+	return file_protobuf_backend_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *Notification) GetTimestamp() *timestamppb.Timestamp {
@@ -1151,7 +1330,21 @@ var file_protobuf_backend_proto_rawDesc = []byte{
 	0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x16, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x4e, 0x6f, 0x74,
 	0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0c, 0x6e, 0x6f, 0x74, 0x69, 0x66,
-	0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0x60, 0x0a, 0x04, 0x46, 0x65, 0x65, 0x64, 0x12,
+	0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0x43, 0x0a, 0x17, 0x55, 0x70, 0x64, 0x61, 0x74,
+	0x65, 0x46, 0x65, 0x65, 0x64, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x12, 0x28, 0x0a, 0x06, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x10, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x43, 0x6f,
+	0x6e, 0x66, 0x69, 0x67, 0x52, 0x06, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x22, 0x1a, 0x0a, 0x18,
+	0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x46, 0x65, 0x65, 0x64, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x3a, 0x0a, 0x14, 0x47, 0x65, 0x74, 0x46,
+	0x65, 0x65, 0x64, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x12, 0x22, 0x0a, 0x04, 0x66, 0x65, 0x65, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x46, 0x65, 0x65, 0x64, 0x52, 0x04,
+	0x66, 0x65, 0x65, 0x64, 0x22, 0x41, 0x0a, 0x15, 0x47, 0x65, 0x74, 0x46, 0x65, 0x65, 0x64, 0x43,
+	0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x28, 0x0a,
+	0x06, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x10, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52,
+	0x06, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x22, 0x60, 0x0a, 0x04, 0x46, 0x65, 0x65, 0x64, 0x12,
 	0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12,
 	0x20, 0x0a, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x02,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f,
@@ -1204,7 +1397,7 @@ var file_protobuf_backend_proto_rawDesc = []byte{
 	0x67, 0x65, 0x2a, 0x34, 0x0a, 0x08, 0x46, 0x65, 0x65, 0x64, 0x54, 0x79, 0x70, 0x65, 0x12, 0x0f,
 	0x0a, 0x0b, 0x54, 0x45, 0x4d, 0x50, 0x45, 0x52, 0x41, 0x54, 0x55, 0x52, 0x45, 0x10, 0x00, 0x12,
 	0x0c, 0x0a, 0x08, 0x48, 0x55, 0x4d, 0x49, 0x44, 0x49, 0x54, 0x59, 0x10, 0x01, 0x12, 0x09, 0x0a,
-	0x05, 0x4c, 0x49, 0x47, 0x48, 0x54, 0x10, 0x02, 0x32, 0x92, 0x05, 0x0a, 0x0e, 0x42, 0x61, 0x63,
+	0x05, 0x4c, 0x49, 0x47, 0x48, 0x54, 0x10, 0x02, 0x32, 0xbf, 0x06, 0x0a, 0x0e, 0x42, 0x61, 0x63,
 	0x6b, 0x65, 0x6e, 0x64, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x61, 0x0a, 0x12, 0x53,
 	0x74, 0x72, 0x65, 0x61, 0x6d, 0x53, 0x65, 0x6e, 0x73, 0x6f, 0x72, 0x56, 0x61, 0x6c, 0x75, 0x65,
 	0x73, 0x12, 0x23, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x53, 0x74, 0x72,
@@ -1245,10 +1438,21 @@ var file_protobuf_backend_proto_rawDesc = []byte{
 	0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65, 0x71,
 	0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e,
 	0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69,
-	0x6f, 0x6e, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x30, 0x01, 0x42, 0x27, 0x5a,
-	0x25, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x64, 0x61, 0x64, 0x6e,
-	0x2d, 0x64, 0x72, 0x65, 0x61, 0x6d, 0x2d, 0x68, 0x6f, 0x6d, 0x65, 0x2f, 0x78, 0x2f, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x6e, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x30, 0x01, 0x12, 0x59, 0x0a,
+	0x10, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x46, 0x65, 0x65, 0x64, 0x43, 0x6f, 0x6e, 0x66, 0x69,
+	0x67, 0x12, 0x21, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x55, 0x70, 0x64,
+	0x61, 0x74, 0x65, 0x46, 0x65, 0x65, 0x64, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e,
+	0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x46, 0x65, 0x65, 0x64, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x50, 0x0a, 0x0d, 0x47, 0x65, 0x74, 0x46,
+	0x65, 0x65, 0x64, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x1e, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x62, 0x75, 0x66, 0x2e, 0x47, 0x65, 0x74, 0x46, 0x65, 0x65, 0x64, 0x43, 0x6f, 0x6e, 0x66,
+	0x69, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x62, 0x75, 0x66, 0x2e, 0x47, 0x65, 0x74, 0x46, 0x65, 0x65, 0x64, 0x43, 0x6f, 0x6e, 0x66,
+	0x69, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x27, 0x5a, 0x25, 0x67, 0x69,
+	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x64, 0x61, 0x64, 0x6e, 0x2d, 0x64, 0x72,
+	0x65, 0x61, 0x6d, 0x2d, 0x68, 0x6f, 0x6d, 0x65, 0x2f, 0x78, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1264,7 +1468,7 @@ func file_protobuf_backend_proto_rawDescGZIP() []byte {
 }
 
 var file_protobuf_backend_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_protobuf_backend_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_protobuf_backend_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_protobuf_backend_proto_goTypes = []interface{}{
 	(FeedType)(0),                        // 0: protobuf.FeedType
 	(*StreamSensorValuesRequest)(nil),    // 1: protobuf.StreamSensorValuesRequest
@@ -1281,49 +1485,60 @@ var file_protobuf_backend_proto_goTypes = []interface{}{
 	(*SetActuatorStateResponse)(nil),     // 12: protobuf.SetActuatorStateResponse
 	(*StreamNotificationsRequest)(nil),   // 13: protobuf.StreamNotificationsRequest
 	(*StreamNotificationsResponse)(nil),  // 14: protobuf.StreamNotificationsResponse
-	(*Feed)(nil),                         // 15: protobuf.Feed
-	(*FeedsChange)(nil),                  // 16: protobuf.FeedsChange
-	(*Config)(nil),                       // 17: protobuf.Config
-	(*SensorConfig)(nil),                 // 18: protobuf.SensorConfig
-	(*ActuatorConfig)(nil),               // 19: protobuf.ActuatorConfig
-	(*Notification)(nil),                 // 20: protobuf.Notification
-	(*timestamppb.Timestamp)(nil),        // 21: google.protobuf.Timestamp
+	(*UpdateFeedConfigRequest)(nil),      // 15: protobuf.UpdateFeedConfigRequest
+	(*UpdateFeedConfigResponse)(nil),     // 16: protobuf.UpdateFeedConfigResponse
+	(*GetFeedConfigRequest)(nil),         // 17: protobuf.GetFeedConfigRequest
+	(*GetFeedConfigResponse)(nil),        // 18: protobuf.GetFeedConfigResponse
+	(*Feed)(nil),                         // 19: protobuf.Feed
+	(*FeedsChange)(nil),                  // 20: protobuf.FeedsChange
+	(*Config)(nil),                       // 21: protobuf.Config
+	(*SensorConfig)(nil),                 // 22: protobuf.SensorConfig
+	(*ActuatorConfig)(nil),               // 23: protobuf.ActuatorConfig
+	(*Notification)(nil),                 // 24: protobuf.Notification
+	(*timestamppb.Timestamp)(nil),        // 25: google.protobuf.Timestamp
 }
 var file_protobuf_backend_proto_depIdxs = []int32{
-	15, // 0: protobuf.StreamSensorValuesRequest.feed:type_name -> protobuf.Feed
-	15, // 1: protobuf.StreamActuatorStatesRequest.feed:type_name -> protobuf.Feed
-	16, // 2: protobuf.StreamFeedsChangesResponse.change:type_name -> protobuf.FeedsChange
-	15, // 3: protobuf.CreateFeedRequest.feed:type_name -> protobuf.Feed
-	15, // 4: protobuf.DeleteFeedRequest.feed:type_name -> protobuf.Feed
-	15, // 5: protobuf.SetActuatorStateRequest.feed:type_name -> protobuf.Feed
-	15, // 6: protobuf.StreamNotificationsRequest.feed:type_name -> protobuf.Feed
-	20, // 7: protobuf.StreamNotificationsResponse.notification:type_name -> protobuf.Notification
-	0,  // 8: protobuf.Feed.type:type_name -> protobuf.FeedType
-	15, // 9: protobuf.FeedsChange.addeds:type_name -> protobuf.Feed
-	15, // 10: protobuf.Config.feedConfig:type_name -> protobuf.Feed
-	18, // 11: protobuf.Config.sensorConfig:type_name -> protobuf.SensorConfig
-	19, // 12: protobuf.Config.actuatorConfig:type_name -> protobuf.ActuatorConfig
-	21, // 13: protobuf.Notification.timestamp:type_name -> google.protobuf.Timestamp
-	15, // 14: protobuf.Notification.feed:type_name -> protobuf.Feed
-	1,  // 15: protobuf.BackendService.StreamSensorValues:input_type -> protobuf.StreamSensorValuesRequest
-	3,  // 16: protobuf.BackendService.StreamActuatorStates:input_type -> protobuf.StreamActuatorStatesRequest
-	5,  // 17: protobuf.BackendService.StreamFeedsChanges:input_type -> protobuf.StreamFeedsChangesRequest
-	7,  // 18: protobuf.BackendService.CreateFeed:input_type -> protobuf.CreateFeedRequest
-	9,  // 19: protobuf.BackendService.DeleteFeed:input_type -> protobuf.DeleteFeedRequest
-	11, // 20: protobuf.BackendService.SetActuatorState:input_type -> protobuf.SetActuatorStateRequest
-	13, // 21: protobuf.BackendService.StreamNotifications:input_type -> protobuf.StreamNotificationsRequest
-	2,  // 22: protobuf.BackendService.StreamSensorValues:output_type -> protobuf.StreamSensorValuesResponse
-	4,  // 23: protobuf.BackendService.StreamActuatorStates:output_type -> protobuf.StreamActuatorStatesResponse
-	6,  // 24: protobuf.BackendService.StreamFeedsChanges:output_type -> protobuf.StreamFeedsChangesResponse
-	8,  // 25: protobuf.BackendService.CreateFeed:output_type -> protobuf.CreateFeedResponse
-	10, // 26: protobuf.BackendService.DeleteFeed:output_type -> protobuf.DeleteFeedResponse
-	12, // 27: protobuf.BackendService.SetActuatorState:output_type -> protobuf.SetActuatorStateResponse
-	14, // 28: protobuf.BackendService.StreamNotifications:output_type -> protobuf.StreamNotificationsResponse
-	22, // [22:29] is the sub-list for method output_type
-	15, // [15:22] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	19, // 0: protobuf.StreamSensorValuesRequest.feed:type_name -> protobuf.Feed
+	19, // 1: protobuf.StreamActuatorStatesRequest.feed:type_name -> protobuf.Feed
+	20, // 2: protobuf.StreamFeedsChangesResponse.change:type_name -> protobuf.FeedsChange
+	19, // 3: protobuf.CreateFeedRequest.feed:type_name -> protobuf.Feed
+	19, // 4: protobuf.DeleteFeedRequest.feed:type_name -> protobuf.Feed
+	19, // 5: protobuf.SetActuatorStateRequest.feed:type_name -> protobuf.Feed
+	19, // 6: protobuf.StreamNotificationsRequest.feed:type_name -> protobuf.Feed
+	24, // 7: protobuf.StreamNotificationsResponse.notification:type_name -> protobuf.Notification
+	21, // 8: protobuf.UpdateFeedConfigRequest.config:type_name -> protobuf.Config
+	19, // 9: protobuf.GetFeedConfigRequest.feed:type_name -> protobuf.Feed
+	21, // 10: protobuf.GetFeedConfigResponse.config:type_name -> protobuf.Config
+	0,  // 11: protobuf.Feed.type:type_name -> protobuf.FeedType
+	19, // 12: protobuf.FeedsChange.addeds:type_name -> protobuf.Feed
+	19, // 13: protobuf.Config.feedConfig:type_name -> protobuf.Feed
+	22, // 14: protobuf.Config.sensorConfig:type_name -> protobuf.SensorConfig
+	23, // 15: protobuf.Config.actuatorConfig:type_name -> protobuf.ActuatorConfig
+	25, // 16: protobuf.Notification.timestamp:type_name -> google.protobuf.Timestamp
+	19, // 17: protobuf.Notification.feed:type_name -> protobuf.Feed
+	1,  // 18: protobuf.BackendService.StreamSensorValues:input_type -> protobuf.StreamSensorValuesRequest
+	3,  // 19: protobuf.BackendService.StreamActuatorStates:input_type -> protobuf.StreamActuatorStatesRequest
+	5,  // 20: protobuf.BackendService.StreamFeedsChanges:input_type -> protobuf.StreamFeedsChangesRequest
+	7,  // 21: protobuf.BackendService.CreateFeed:input_type -> protobuf.CreateFeedRequest
+	9,  // 22: protobuf.BackendService.DeleteFeed:input_type -> protobuf.DeleteFeedRequest
+	11, // 23: protobuf.BackendService.SetActuatorState:input_type -> protobuf.SetActuatorStateRequest
+	13, // 24: protobuf.BackendService.StreamNotifications:input_type -> protobuf.StreamNotificationsRequest
+	15, // 25: protobuf.BackendService.UpdateFeedConfig:input_type -> protobuf.UpdateFeedConfigRequest
+	17, // 26: protobuf.BackendService.GetFeedConfig:input_type -> protobuf.GetFeedConfigRequest
+	2,  // 27: protobuf.BackendService.StreamSensorValues:output_type -> protobuf.StreamSensorValuesResponse
+	4,  // 28: protobuf.BackendService.StreamActuatorStates:output_type -> protobuf.StreamActuatorStatesResponse
+	6,  // 29: protobuf.BackendService.StreamFeedsChanges:output_type -> protobuf.StreamFeedsChangesResponse
+	8,  // 30: protobuf.BackendService.CreateFeed:output_type -> protobuf.CreateFeedResponse
+	10, // 31: protobuf.BackendService.DeleteFeed:output_type -> protobuf.DeleteFeedResponse
+	12, // 32: protobuf.BackendService.SetActuatorState:output_type -> protobuf.SetActuatorStateResponse
+	14, // 33: protobuf.BackendService.StreamNotifications:output_type -> protobuf.StreamNotificationsResponse
+	16, // 34: protobuf.BackendService.UpdateFeedConfig:output_type -> protobuf.UpdateFeedConfigResponse
+	18, // 35: protobuf.BackendService.GetFeedConfig:output_type -> protobuf.GetFeedConfigResponse
+	27, // [27:36] is the sub-list for method output_type
+	18, // [18:27] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_protobuf_backend_proto_init() }
@@ -1501,7 +1716,7 @@ func file_protobuf_backend_proto_init() {
 			}
 		}
 		file_protobuf_backend_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Feed); i {
+			switch v := v.(*UpdateFeedConfigRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1513,7 +1728,7 @@ func file_protobuf_backend_proto_init() {
 			}
 		}
 		file_protobuf_backend_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FeedsChange); i {
+			switch v := v.(*UpdateFeedConfigResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1525,7 +1740,7 @@ func file_protobuf_backend_proto_init() {
 			}
 		}
 		file_protobuf_backend_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Config); i {
+			switch v := v.(*GetFeedConfigRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1537,7 +1752,7 @@ func file_protobuf_backend_proto_init() {
 			}
 		}
 		file_protobuf_backend_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SensorConfig); i {
+			switch v := v.(*GetFeedConfigResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1549,7 +1764,7 @@ func file_protobuf_backend_proto_init() {
 			}
 		}
 		file_protobuf_backend_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ActuatorConfig); i {
+			switch v := v.(*Feed); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1561,6 +1776,54 @@ func file_protobuf_backend_proto_init() {
 			}
 		}
 		file_protobuf_backend_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*FeedsChange); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protobuf_backend_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Config); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protobuf_backend_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SensorConfig); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protobuf_backend_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ActuatorConfig); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protobuf_backend_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Notification); i {
 			case 0:
 				return &v.state
@@ -1573,7 +1836,7 @@ func file_protobuf_backend_proto_init() {
 			}
 		}
 	}
-	file_protobuf_backend_proto_msgTypes[16].OneofWrappers = []interface{}{
+	file_protobuf_backend_proto_msgTypes[20].OneofWrappers = []interface{}{
 		(*Config_SensorConfig)(nil),
 		(*Config_ActuatorConfig)(nil),
 	}
@@ -1583,7 +1846,7 @@ func file_protobuf_backend_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_protobuf_backend_proto_rawDesc,
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

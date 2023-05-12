@@ -189,3 +189,66 @@ func TestCreateAndDeleteFeeds(t *testing.T) {
 		t.Fatalf("expected 0 feeds, got %d", len(feeds))
 	}
 }
+
+func TestGetFeedConfig(t *testing.T) {
+	client, stop := startServerAndClient(ctx)
+	defer stop()
+
+	feedID := uuid.NewString()
+
+	if _, err := client.CreateFeed(ctx, &pb.CreateFeedRequest{
+		Feed: &pb.Feed{
+			Id:   feedID,
+			Type: pb.FeedType_TEMPERATURE,
+		},
+	}); err != nil {
+		t.Fatalf("error creating feed: %v", err)
+	}
+
+	if _, err := client.GetFeedConfig(ctx, &pb.GetFeedConfigRequest{Feed: &pb.Feed{Id: feedID}}); err != nil {
+		t.Fatalf("error getting feed config: %v", err)
+	}
+}
+
+func TestGetFeedConfigNotFound(t *testing.T) {
+	client, stop := startServerAndClient(ctx)
+	defer stop()
+
+	if _, err := client.GetFeedConfig(ctx, &pb.GetFeedConfigRequest{Feed: &pb.Feed{Id: "notfound"}}); err == nil {
+		t.Fatalf("expected error getting feed config")
+	}
+}
+
+func TestUpdateFeedConfig(t *testing.T) {
+	client, stop := startServerAndClient(ctx)
+	defer stop()
+
+	feedID := uuid.NewString()
+
+	if _, err := client.CreateFeed(ctx, &pb.CreateFeedRequest{
+		Feed: &pb.Feed{
+			Id:   feedID,
+			Type: pb.FeedType_TEMPERATURE,
+		},
+	}); err != nil {
+		t.Fatalf("error creating feed: %v", err)
+	}
+
+	if _, err := client.UpdateFeedConfig(ctx, &pb.UpdateFeedConfigRequest{
+		Config: &pb.Config{
+			FeedConfig: &pb.Feed{
+				Id:   feedID,
+				Type: pb.FeedType_TEMPERATURE,
+			},
+			TypeConfig: &pb.Config_SensorConfig{
+				SensorConfig: &pb.SensorConfig{
+					HasNotification: true,
+					UpperThreshold:  10,
+					LowerThreshold:  40,
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("error updating feed config: %v", err)
+	}
+}

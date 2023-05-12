@@ -25,6 +25,10 @@ service BackendService {
 
   rpc StreamNotifications(StreamNotificationsRequest)
       returns (stream StreamNotificationsResponse);
+
+  rpc UpdateFeedConfig(UpdateFeedConfigRequest) returns (UpdateFeedConfigResponse);
+
+  rpc GetFeedConfig(GetFeedConfigRequest) returns (GetFeedConfigResponse);
 }
 
 message StreamSensorValuesRequest { Feed feed = 1; }
@@ -57,6 +61,14 @@ message SetActuatorStateResponse {}
 message StreamNotificationsRequest { Feed feed = 1; }
 
 message StreamNotificationsResponse { Notification notification = 1; }
+
+message UpdateFeedConfigRequest { Config config = 1; }
+
+message UpdateFeedConfigResponse {}
+
+message GetFeedConfigRequest { Feed feed = 1; }
+
+message GetFeedConfigResponse { Config config = 1; }
 
 // data types
 
