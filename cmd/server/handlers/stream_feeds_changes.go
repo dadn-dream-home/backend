@@ -30,8 +30,12 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 		select {
 		case <-stream.Context().Done():
 			log.Debug("cancelled streaming by client")
-
 			h.PubSubFeeds().Unsubscribe(ctx, ch)
+			for change := <-ch; change != nil; change = <-ch {
+				// skip remaining messages
+			}
+			log.Info("ended streaming")
+			return nil
 
 		case change := <-ch:
 			if change == nil {

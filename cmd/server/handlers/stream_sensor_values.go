@@ -52,6 +52,11 @@ func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamSensorValues
 		case <-stream.Context().Done():
 			log.Debug("cancelled streaming by client")
 			s.PubSubValues().Unsubscribe(ctx, req.Feed.Id, ch)
+			for msg := <-ch; msg != nil; msg = <-ch {
+				// skip remaining messages
+			}
+			log.Info("ended streaming")
+			return nil
 
 		case msg := <-ch:
 			if msg == nil {

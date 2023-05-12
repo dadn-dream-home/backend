@@ -49,13 +49,18 @@ func (p *pubSubValues) Serve(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			p.PubSubFeeds().Unsubscribe(ctx, ch)
+			for change := <-ch; change != nil; change = <-ch {
+				// skip changes
+			}
+			log.Info("ended streaming")
+			return nil
 
 		case change := <-ch:
 			if change == nil {
 				log.Info("ended streaming")
 				return nil
 			}
-			
+
 			for _, feed := range change.Addeds {
 				log := log.With(zap.String("feed.id", feed.Id))
 				ctx = telemetry.ContextWithLogger(ctx, log)

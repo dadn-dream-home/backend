@@ -70,6 +70,10 @@ func (n *notifier) Serve(ctx context.Context) (err error) {
 		select {
 		case <-ctx.Done():
 			n.PubSubFeeds().Unsubscribe(ctx, ch)
+			for changes := <-ch; changes != nil; changes = <-ch {
+				// skip remaining changes
+			}
+			log.Info("stopped notifier")
 			return group.Wait()
 
 		case changes := <-ch:
@@ -137,6 +141,11 @@ func (n *notifier) listenToFeed(ctx context.Context, feed *pb.Feed, rx <-chan []
 		select {
 		case <-ctx.Done():
 			n.PubSubValues().Unsubscribe(ctx, feed.Id, rx)
+			for payload := <-rx; payload != nil; payload = <-rx {
+				// skip remaining payloads
+			}
+			log.Info("stopped listener by context done")
+			return nil
 
 		case payload := <-rx:
 			if payload == nil {
