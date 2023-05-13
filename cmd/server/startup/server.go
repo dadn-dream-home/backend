@@ -11,6 +11,7 @@ import (
 	"github.com/dadn-dream-home/x/server/handlers"
 	"github.com/dadn-dream-home/x/server/interceptors"
 	"github.com/dadn-dream-home/x/server/services"
+	"github.com/dadn-dream-home/x/server/services/repository"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -46,7 +47,7 @@ var _ state.State = (*Server)(nil)
 
 func NewServer(ctx context.Context, db *sql.DB, mqtt mqtt.Client) *Server {
 	s := &Server{}
-	s.repository = services.NewRepository(ctx, s, db)
+	s.repository = repository.NewRepository(ctx, s, db)
 	s.pubSubFeeds = services.NewPubSubFeeds(ctx, s)
 	s.pubSubValues = services.NewPubSubValues(ctx, s, mqtt)
 	s.notifier = services.NewNotifier(ctx, s)
