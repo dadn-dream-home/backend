@@ -10,6 +10,7 @@ import (
 
 	"github.com/dadn-dream-home/x/server/startup"
 	"github.com/dadn-dream-home/x/server/telemetry"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -21,7 +22,7 @@ import (
 
 var ctx = context.Background()
 
-var startServerAndClient func(ctx context.Context) (pb.BackendServiceClient, func())
+var startServerAndClient func(ctx context.Context) (pb.BackendServiceClient, mqtt.Client, func())
 
 func TestMain(m *testing.M) {
 	os.Chdir(os.Getenv("WORKSPACE_DIR"))
@@ -29,14 +30,14 @@ func TestMain(m *testing.M) {
 	ctx = telemetry.InitLogger(ctx)
 	config := startup.OpenConfig(ctx)
 	config.DatabaseConfig.ConnectionString = ":memory:"
-	mqtt := startup.ConnectMQTT(ctx, config.MQTTConfig)
+	mqttClient := startup.ConnectMQTT(ctx, config.MQTTConfig)
 
-	startServerAndClient = func(ctx context.Context) (pb.BackendServiceClient, func()) {
+	startServerAndClient = func(ctx context.Context) (pb.BackendServiceClient, mqtt.Client, func()) {
 		db := startup.OpenDatabase(ctx, config.DatabaseConfig)
 		startup.Migrate(ctx, db, config.DatabaseConfig)
 
 		lis := bufconn.Listen(1024 * 1024)
-		server := startup.NewServer(ctx, db, mqtt)
+		server := startup.NewServer(ctx, db, mqttClient)
 		go server.Serve(ctx, lis)
 
 		conn, err := grpc.DialContext(ctx, "",
@@ -47,7 +48,7 @@ func TestMain(m *testing.M) {
 			log.Panic("error connecting to server: %w", err)
 		}
 
-		return pb.NewBackendServiceClient(conn), func() {
+		return pb.NewBackendServiceClient(conn), mqttClient, func() {
 			server.Stop()
 			db.Close()
 		}
@@ -56,16 +57,16 @@ func TestMain(m *testing.M) {
 	// setup
 	m.Run()
 
-	mqtt.Disconnect(0)
+	mqttClient.Disconnect(0)
 }
 
 func TestSmoke(t *testing.T) {
-	_, stop := startServerAndClient(ctx)
+	_, _, stop := startServerAndClient(ctx)
 	defer stop()
 }
 
 func TestCreateDuplicateFeeds(t *testing.T) {
-	client, stop := startServerAndClient(ctx)
+	client, _, stop := startServerAndClient(ctx)
 	defer stop()
 
 	feedID := uuid.NewString()
@@ -92,7 +93,7 @@ func TestCreateDuplicateFeeds(t *testing.T) {
 }
 
 func TestCreateAndListFeeds(t *testing.T) {
-	client, stop := startServerAndClient(ctx)
+	client, _, stop := startServerAndClient(ctx)
 	defer stop()
 
 	feedID := uuid.NewString()
@@ -140,7 +141,7 @@ func TestCreateAndListFeeds(t *testing.T) {
 }
 
 func TestCreateAndDeleteFeeds(t *testing.T) {
-	client, stop := startServerAndClient(ctx)
+	client, _, stop := startServerAndClient(ctx)
 	defer stop()
 
 	feedID := uuid.NewString()
@@ -191,7 +192,7 @@ func TestCreateAndDeleteFeeds(t *testing.T) {
 }
 
 func TestGetFeedConfig(t *testing.T) {
-	client, stop := startServerAndClient(ctx)
+	client, _, stop := startServerAndClient(ctx)
 	defer stop()
 
 	feedID := uuid.NewString()
@@ -211,7 +212,7 @@ func TestGetFeedConfig(t *testing.T) {
 }
 
 func TestGetFeedConfigNotFound(t *testing.T) {
-	client, stop := startServerAndClient(ctx)
+	client, _, stop := startServerAndClient(ctx)
 	defer stop()
 
 	if _, err := client.GetFeedConfig(ctx, &pb.GetFeedConfigRequest{Feed: &pb.Feed{Id: "notfound"}}); err == nil {
@@ -220,7 +221,7 @@ func TestGetFeedConfigNotFound(t *testing.T) {
 }
 
 func TestUpdateFeedConfig(t *testing.T) {
-	client, stop := startServerAndClient(ctx)
+	client, _, stop := startServerAndClient(ctx)
 	defer stop()
 
 	feedID := uuid.NewString()
@@ -250,5 +251,149 @@ func TestUpdateFeedConfig(t *testing.T) {
 		},
 	}); err != nil {
 		t.Fatalf("error updating feed config: %v", err)
+	}
+}
+
+func TestLowThresholdNotification(t *testing.T) {
+	client, mqtt, stop := startServerAndClient(ctx)
+	defer stop()
+
+	feedID := uuid.NewString()
+
+	if _, err := client.CreateFeed(ctx, &pb.CreateFeedRequest{
+		Feed: &pb.Feed{
+			Id:   feedID,
+			Type: pb.FeedType_TEMPERATURE,
+		},
+	}); err != nil {
+		t.Fatalf("error creating feed: %v", err)
+	}
+
+	if _, err := client.UpdateFeedConfig(ctx, &pb.UpdateFeedConfigRequest{
+		Config: &pb.Config{
+			FeedConfig: &pb.Feed{
+				Id:   feedID,
+				Type: pb.FeedType_TEMPERATURE,
+			},
+			TypeConfig: &pb.Config_SensorConfig{
+				SensorConfig: &pb.SensorConfig{
+					HasNotification: true,
+					LowerThreshold:  2,
+					UpperThreshold:  98,
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("error updating feed config: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	stream, err := client.StreamNotifications(ctx, &pb.StreamNotificationsRequest{
+		Feed: &pb.Feed{
+			Id: feedID,
+		},
+	})
+	if err != nil {
+		t.Fatalf("error streaming notifications: %v", err)
+	}
+
+	if token := mqtt.Publish(feedID, 0, false, "1"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+	if token := mqtt.Publish(feedID, 0, false, "30"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+	if token := mqtt.Publish(feedID, 0, false, "99"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+
+	var notifications []*pb.Notification
+
+	for {
+		res, err := stream.Recv()
+		if err != nil || res == nil {
+			break
+		}
+
+		notifications = append(notifications, res.Notification)
+	}
+
+	if len(notifications) != 2 {
+		t.Fatalf("expected 2 notification, got %d", len(notifications))
+	}
+
+	if notifications[0].Feed.Id != feedID {
+		t.Fatalf("expected feed id %s, got %s", feedID, notifications[0].Feed.Id)
+	}
+}
+
+func TestThresholdDisableNotification(t *testing.T) {
+	client, mqtt, stop := startServerAndClient(ctx)
+	defer stop()
+
+	feedID := uuid.NewString()
+
+	if _, err := client.CreateFeed(ctx, &pb.CreateFeedRequest{
+		Feed: &pb.Feed{
+			Id:   feedID,
+			Type: pb.FeedType_TEMPERATURE,
+		},
+	}); err != nil {
+		t.Fatalf("error creating feed: %v", err)
+	}
+
+	if _, err := client.UpdateFeedConfig(ctx, &pb.UpdateFeedConfigRequest{
+		Config: &pb.Config{
+			FeedConfig: &pb.Feed{
+				Id:   feedID,
+				Type: pb.FeedType_TEMPERATURE,
+			},
+			TypeConfig: &pb.Config_SensorConfig{
+				SensorConfig: &pb.SensorConfig{
+					HasNotification: false,
+					LowerThreshold:  2,
+					UpperThreshold:  98,
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("error updating feed config: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	stream, err := client.StreamNotifications(ctx, &pb.StreamNotificationsRequest{
+		Feed: &pb.Feed{
+			Id: feedID,
+		},
+	})
+	if err != nil {
+		t.Fatalf("error streaming notifications: %v", err)
+	}
+
+	if token := mqtt.Publish(feedID, 0, false, "1"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+	if token := mqtt.Publish(feedID, 0, false, "30"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+	if token := mqtt.Publish(feedID, 0, false, "99"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+
+	var notifications []*pb.Notification
+
+	for {
+		res, err := stream.Recv()
+		if err != nil || res == nil {
+			break
+		}
+
+		notifications = append(notifications, res.Notification)
+	}
+
+	if len(notifications) != 0 {
+		t.Fatalf("expected 0 notification, got %d", len(notifications))
 	}
 }

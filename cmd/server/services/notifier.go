@@ -153,8 +153,16 @@ func (n *notifier) listenToFeed(ctx context.Context, feed *pb.Feed, rx <-chan []
 				return nil
 			}
 
-			lower := 10
-			upper := 30
+			feedConfig, err := n.Repository().GetFeedConfig(ctx, feed.Id)
+			if err != nil {
+				return err
+			}
+
+			log.Debug("feed config", zap.Any("config", feedConfig))
+
+			if !feedConfig.GetSensorConfig().HasNotification {
+				continue
+			}
 
 			value, err := strconv.ParseFloat(string(payload), 64)
 			if err != nil {
@@ -164,13 +172,13 @@ func (n *notifier) listenToFeed(ctx context.Context, feed *pb.Feed, rx <-chan []
 
 			var notification *pb.Notification
 
-			if value < float64(lower) {
+			if value < float64(feedConfig.GetSensorConfig().LowerThreshold) {
 				notification = &pb.Notification{
 					Timestamp: timestamppb.Now(),
 					Feed:      feed,
 					Message:   fmt.Sprintf("%s (feed %s) is too low: %f", feed.Type, feed.Id, value),
 				}
-			} else if value > float64(upper) {
+			} else if value > float64(feedConfig.GetSensorConfig().UpperThreshold) {
 				notification = &pb.Notification{
 					Timestamp: timestamppb.Now(),
 					Feed:      feed,
