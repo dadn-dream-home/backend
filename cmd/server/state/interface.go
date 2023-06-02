@@ -7,10 +7,20 @@ import (
 )
 
 type State interface {
+	DatabaseListener() DatabaseListener
 	PubSubValues() PubSubValues
 	PubSubFeeds() PubSubFeeds
 	Repository() Repository
 	Notifier() Notifier
+}
+
+type Topic struct {
+	Op    int
+	Table string
+}
+
+type DatabaseListener interface {
+	Subscribe(topic Topic, callback func(t Topic, rowid int64) any) (unsubscribe func())
 }
 
 type PubSubValues interface {

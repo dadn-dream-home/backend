@@ -1,4 +1,4 @@
-package startup
+package database
 
 import (
 	"context"
@@ -12,20 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func OpenDatabase(ctx context.Context, config DatabaseConfig) *sql.DB {
-	log := telemetry.GetLogger(ctx)
-
-	db, err := sql.Open("sqlite3", config.ConnectionString)
-	if err != nil {
-		log.Fatal("failed to open database", zap.Error(err))
-	}
-
-	log.Info("opened database")
-
-	return db
-}
-
-func Migrate(ctx context.Context, db *sql.DB, config DatabaseConfig) {
+func Migrate(ctx context.Context, db *sql.DB, config Config) {
 	log := telemetry.GetLogger(ctx)
 
 	instance, err := sqlite3.WithInstance(db, &sqlite3.Config{})

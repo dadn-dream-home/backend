@@ -3,6 +3,7 @@ package startup
 import (
 	"context"
 
+	"github.com/dadn-dream-home/x/server/startup/database"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	"github.com/hashicorp/hcl/v2/hclsimple"
 	"go.uber.org/zap"
@@ -10,17 +11,12 @@ import (
 
 type Config struct {
 	ServerConfig   `hcl:"server,block"`
-	DatabaseConfig `hcl:"database,block"`
+	DatabaseConfig database.Config `hcl:"database,block"`
 	MQTTConfig     `hcl:"mqtt,block"`
 }
 
 type ServerConfig struct {
 	Port int `hcl:"port"`
-}
-
-type DatabaseConfig struct {
-	ConnectionString string `hcl:"connection_string"`
-	MigrationsPath   string `hcl:"migrations_path"`
 }
 
 type MQTTConfig struct {

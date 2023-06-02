@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dadn-dream-home/x/server/startup"
+	"github.com/dadn-dream-home/x/server/startup/database"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
@@ -33,8 +34,8 @@ func TestMain(m *testing.M) {
 	mqttClient := startup.ConnectMQTT(ctx, config.MQTTConfig)
 
 	startServerAndClient = func(ctx context.Context) (pb.BackendServiceClient, mqtt.Client, func()) {
-		db := startup.OpenDatabase(ctx, config.DatabaseConfig)
-		startup.Migrate(ctx, db, config.DatabaseConfig)
+		db := database.OpenDatabase(ctx, config.DatabaseConfig)
+		database.Migrate(ctx, db, config.DatabaseConfig)
 
 		lis := bufconn.Listen(1024 * 1024)
 		server := startup.NewServer(ctx, db, mqttClient)

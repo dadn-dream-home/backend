@@ -17,7 +17,8 @@ type feedValueRepository struct {
 func (r feedValueRepository) InsertFeedValue(ctx context.Context, feedId string, value []byte) error {
 	log := telemetry.GetLogger(ctx)
 
-	if _, err := r.db.Exec(
+	if _, err := r.conn.ExecContext(
+		ctx,
 		"INSERT INTO feed_values (feed_id, value) VALUES (?, ?)",
 		feedId, value,
 	); err != nil {
@@ -34,7 +35,7 @@ func (r feedValueRepository) GetFeedLatestValue(ctx context.Context, feedId stri
 	log := telemetry.GetLogger(ctx)
 
 	var value []byte
-	if err := r.db.QueryRow(
+	if err := r.conn.QueryRowContext(ctx,
 		"SELECT value FROM feed_values WHERE feed_id = ? ORDER BY time DESC LIMIT 1",
 		feedId,
 	).Scan(&value); err != nil {

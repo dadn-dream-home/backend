@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/dadn-dream-home/x/server/startup"
+	"github.com/dadn-dream-home/x/server/startup/database"
 	"github.com/dadn-dream-home/x/server/telemetry"
 )
 
@@ -12,8 +13,8 @@ func main() {
 
 	config := startup.OpenConfig(ctx)
 
-	db := startup.OpenDatabase(ctx, config.DatabaseConfig)
-	startup.Migrate(ctx, db, config.DatabaseConfig)
+	db := database.OpenDatabase(ctx, config.DatabaseConfig)
+	database.Migrate(ctx, db, config.DatabaseConfig)
 
 	mqtt := startup.ConnectMQTT(ctx, config.MQTTConfig)
 
