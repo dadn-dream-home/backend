@@ -4,6 +4,7 @@ import (
 	"context"
 
 	pb "github.com/dadn-dream-home/x/protobuf"
+	"github.com/dadn-dream-home/x/server/state/topic"
 )
 
 type State interface {
@@ -14,13 +15,11 @@ type State interface {
 	Notifier() Notifier
 }
 
-type Topic struct {
-	Op    int
-	Table string
-}
-
 type DatabaseListener interface {
-	Subscribe(topic Topic, callback func(t Topic, rowid int64) any) (unsubscribe func())
+	Subscribe(
+		topic topic.Topic,
+		callback func(t topic.Topic, rowid int64) error,
+	) (unsubscribe func(), errCh <-chan error)
 }
 
 type PubSubValues interface {
@@ -50,6 +49,7 @@ type Repository interface {
 type FeedRepository interface {
 	CreateFeed(ctx context.Context, feed *pb.Feed) error
 	GetFeed(ctx context.Context, feedID string) (*pb.Feed, error)
+	GetFeedByRowID(ctx context.Context, rowID int64) (*pb.Feed, error)
 	ListFeeds(ctx context.Context) ([]*pb.Feed, error)
 	DeleteFeed(ctx context.Context, feedID string) error
 }
@@ -57,6 +57,7 @@ type FeedRepository interface {
 type FeedValueRepository interface {
 	InsertFeedValue(ctx context.Context, feedID string, value []byte) error
 	GetFeedLatestValue(ctx context.Context, feedID string) ([]byte, error)
+	GetFeedValueByRowID(ctx context.Context, rowID int64) ([]byte, error)
 }
 
 type NotificationRepository interface {

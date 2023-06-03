@@ -120,6 +120,27 @@ func (r feedRepository) GetFeed(ctx context.Context, feedId string) (*pb.Feed, e
 	return &feed, nil
 }
 
+func (r feedRepository) GetFeedByRowID(ctx context.Context, rowID int64) (*pb.Feed, error) {
+	log := telemetry.GetLogger(ctx)
+
+	var feed pb.Feed
+	if err := r.conn.QueryRowContext(ctx, "SELECT id, type FROM feeds WHERE rowid = ?", rowID).Scan(&feed.Id, &feed.Type); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errutils.NotFound(ctx, &errdetails.ResourceInfo{
+				ResourceType: "Feed",
+				ResourceName: fmt.Sprintf("rowid %d", rowID),
+				Description:  fmt.Sprintf("Feed with rowid %d not found", rowID),
+			})
+		}
+		return nil, errutils.Internal(ctx, fmt.Errorf(
+			"error querying feed from database: %w", err))
+	}
+
+	log.Info("got feed %s from database successfully", zap.String("feed.id", feed.Id))
+
+	return &feed, nil
+}
+
 func (r feedRepository) ListFeeds(ctx context.Context) ([]*pb.Feed, error) {
 	log := telemetry.GetLogger(ctx)
 

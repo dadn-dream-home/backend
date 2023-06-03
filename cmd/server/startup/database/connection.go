@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"sync"
 
-	"github.com/dadn-dream-home/x/server/state"
+	"github.com/dadn-dream-home/x/server/state/topic"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	"github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
@@ -15,18 +15,19 @@ type HookedConnection struct {
 	sync.RWMutex
 	*sql.Conn
 
-	subscribers map[state.Topic]map[*subscriber]struct{}
+	subscribers map[topic.Topic]map[*subscriber]struct{}
 }
 
 type subscriber struct {
-	callback func(topic state.Topic, rowid int64) any
+	callback func(topic topic.Topic, rowid int64) error
+	errCh    chan error
 }
 
 func NewHookedConnection(ctx context.Context, db *sql.DB) *HookedConnection {
 	log := telemetry.GetLogger(ctx)
 
 	conn := &HookedConnection{
-		subscribers: make(map[state.Topic]map[*subscriber]struct{}),
+		subscribers: make(map[topic.Topic]map[*subscriber]struct{}),
 	}
 	var err error
 
@@ -45,16 +46,22 @@ func NewHookedConnection(ctx context.Context, db *sql.DB) *HookedConnection {
 }
 
 func (conn *HookedConnection) UpdateHook(op int, database string, table string, rowid int64) {
-	topic := state.Topic{Op: op, Table: table}
+	topic := topic.Topic{Op: op, Table: table}
 
 	conn.RLock()
 	defer conn.RUnlock()
 	for subscriber := range conn.subscribers[topic] {
-		subscriber.callback(topic, rowid)
+		err := subscriber.callback(topic, rowid)
+		if err != nil {
+			subscriber.errCh <- err
+		}
 	}
 }
 
-func (c *HookedConnection) Subscribe(t state.Topic, cb func(t state.Topic, r int64) any) (unsubscribe func()) {
+func (c *HookedConnection) Subscribe(
+	t topic.Topic,
+	cb func(t topic.Topic, r int64) error,
+) (unsubscribe func(), errCh <-chan error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -62,7 +69,7 @@ func (c *HookedConnection) Subscribe(t state.Topic, cb func(t state.Topic, r int
 		c.subscribers[t] = make(map[*subscriber]struct{})
 	}
 
-	s := &subscriber{cb}
+	s := &subscriber{cb, make(chan error)}
 
 	c.subscribers[t][s] = struct{}{}
 
@@ -70,6 +77,7 @@ func (c *HookedConnection) Subscribe(t state.Topic, cb func(t state.Topic, r int
 		c.Lock()
 		defer c.Unlock()
 
+		close(s.errCh)
 		delete(c.subscribers[t], s)
-	}
+	}, s.errCh
 }
