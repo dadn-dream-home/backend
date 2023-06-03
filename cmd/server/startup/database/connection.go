@@ -59,25 +59,29 @@ func (conn *HookedConnection) UpdateHook(op int, database string, table string, 
 }
 
 func (c *HookedConnection) Subscribe(
-	t topic.Topic,
 	cb func(t topic.Topic, r int64) error,
+	ts ...topic.Topic,
 ) (unsubscribe func(), errCh <-chan error) {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.subscribers[t] == nil {
-		c.subscribers[t] = make(map[*subscriber]struct{})
-	}
-
 	s := &subscriber{cb, make(chan error)}
 
-	c.subscribers[t][s] = struct{}{}
+	for _, t := range ts {
+		if c.subscribers[t] == nil {
+			c.subscribers[t] = make(map[*subscriber]struct{})
+		}
+
+		c.subscribers[t][s] = struct{}{}
+	}
 
 	return func() {
 		c.Lock()
 		defer c.Unlock()
 
 		close(s.errCh)
-		delete(c.subscribers[t], s)
+		for _, t := range ts {
+			delete(c.subscribers[t], s)
+		}
 	}, s.errCh
 }

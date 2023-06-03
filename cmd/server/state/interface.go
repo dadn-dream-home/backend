@@ -17,8 +17,8 @@ type State interface {
 
 type DatabaseListener interface {
 	Subscribe(
-		topic topic.Topic,
 		callback func(t topic.Topic, rowid int64) error,
+		topics ...topic.Topic,
 	) (unsubscribe func(), errCh <-chan error)
 }
 
