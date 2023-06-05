@@ -10,6 +10,7 @@ import (
 type State interface {
 	DatabaseHooker() DatabaseHooker
 	MQTTSubscriber() MQTTSubscriber
+	FeedValuesLogger() FeedValuesLogger
 	Repository() Repository
 }
 
@@ -23,6 +24,10 @@ type DatabaseHooker interface {
 type MQTTSubscriber interface {
 	Serve(ctx context.Context) error
 	Publish(ctx context.Context, feedID string, value []byte) error
+}
+
+type FeedValuesLogger interface {
+	Serve(ctx context.Context) error
 }
 
 type Repository interface {
@@ -50,6 +55,7 @@ type FeedValueRepository interface {
 type NotificationRepository interface {
 	InsertNotification(ctx context.Context, notification *pb.Notification) error
 	GetLatestNotification(ctx context.Context, feedID string) (*pb.Notification, error)
+	GetNotificationByRowID(ctx context.Context, rowID int64) (*pb.Notification, error)
 }
 
 type ConfigRepository interface {
