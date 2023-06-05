@@ -453,3 +453,53 @@ func TestFeedValue(t *testing.T) {
 		t.Fatalf("expected 3 feed values, got %d", len(feedValues))
 	}
 }
+
+func TestActivityLog(t *testing.T) {
+	client, mqtt, stop := startServerAndClient(ctx)
+	defer stop()
+
+	feedID := uuid.NewString()
+
+	if _, err := client.CreateFeed(ctx, &pb.CreateFeedRequest{
+		Feed: &pb.Feed{
+			Id:   feedID,
+			Type: pb.FeedType_LIGHT,
+		},
+	}); err != nil {
+		t.Fatalf("error creating feed: %v", err)
+	}
+
+	if token := mqtt.Publish(feedID, 0, false, "1"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+	if token := mqtt.Publish(feedID, 0, false, "0"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	stream, err := client.StreamActivities(ctx, &pb.StreamActivitiesRequest{})
+	if err != nil {
+		t.Fatalf("error streaming activity log: %v", err)
+	}
+
+	if token := mqtt.Publish(feedID, 0, false, "1"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+
+	var activities []*pb.Activity
+	for {
+		res, err := stream.Recv()
+		if err != nil || res == nil {
+			break
+		}
+
+		activities = append(activities, res.Activity)
+	}
+
+	t.Logf("activities: %v", activities)
+
+	if len(activities) != 3 {
+		t.Fatalf("expected 3 activity log, got %d", len(activities))
+	}
+}

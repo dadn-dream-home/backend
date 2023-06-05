@@ -50,6 +50,7 @@ type FeedValueRepository interface {
 	InsertFeedValue(ctx context.Context, feedID string, value []byte) error
 	GetFeedLatestValue(ctx context.Context, feedID string) ([]byte, error)
 	GetFeedValueByRowID(ctx context.Context, rowID int64) (string, []byte, error)
+	ListActivities(ctx context.Context) ([]*pb.Activity, error)
 }
 
 type NotificationRepository interface {

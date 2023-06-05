@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
+	pb "github.com/dadn-dream-home/x/protobuf"
 	"github.com/dadn-dream-home/x/server/errutils"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type feedValueRepository struct {
@@ -77,4 +80,45 @@ func (r feedValueRepository) GetFeedValueByRowID(ctx context.Context, rowID int6
 	log.Info("got feed value from database successfully")
 
 	return feedID, value, nil
+}
+
+func (r feedValueRepository) ListActivities(ctx context.Context) ([]*pb.Activity, error) {
+	types := []int32{int32(pb.FeedType_LIGHT)}
+	typesCommaSeparated := ""
+	for i, t := range types {
+		if i != 0 {
+			typesCommaSeparated += ", "
+		}
+		typesCommaSeparated += fmt.Sprintf("%d", t)
+	}
+
+	rows, err := r.db.Query(fmt.Sprintf(`
+		SELECT id, type, value, time
+		FROM feeds, feed_values
+		WHERE id = feed_id AND type in (%s)
+		ORDER BY time DESC
+	`, typesCommaSeparated))
+
+	if err != nil {
+		return nil, errutils.Internal(ctx, fmt.Errorf(
+			"error querying feed values from database: %w", err))
+	}
+
+	defer rows.Close()
+
+	var activities []*pb.Activity
+	for rows.Next() {
+		var activity pb.Activity
+		var value []byte
+		var t time.Time
+		if err := rows.Scan(&activity.Feed.Id, &activity.Feed.Type, &value, &t); err != nil {
+			return nil, errutils.Internal(ctx, fmt.Errorf(
+				"error scanning feed value from database: %w", err))
+		}
+		activity.State = string(value) != "0"
+		activity.Timestamp = timestamppb.New(t)
+		activities = append(activities, &activity)
+	}
+
+	return activities, nil
 }

@@ -26,9 +26,13 @@ service BackendService {
   rpc StreamNotifications(StreamNotificationsRequest)
       returns (stream StreamNotificationsResponse);
 
-  rpc UpdateFeedConfig(UpdateFeedConfigRequest) returns (UpdateFeedConfigResponse);
+  rpc UpdateFeedConfig(UpdateFeedConfigRequest)
+      returns (UpdateFeedConfigResponse);
 
   rpc GetFeedConfig(GetFeedConfigRequest) returns (GetFeedConfigResponse);
+
+  rpc StreamActivities(StreamActivitiesRequest)
+      returns (stream StreamActivitiesResponse);
 }
 
 message StreamSensorValuesRequest { Feed feed = 1; }
@@ -69,6 +73,10 @@ message UpdateFeedConfigResponse {}
 message GetFeedConfigRequest { Feed feed = 1; }
 
 message GetFeedConfigResponse { Config config = 1; }
+
+message StreamActivitiesRequest {}
+
+message StreamActivitiesResponse { Activity activity = 1; }
 
 // data types
 
@@ -113,4 +121,10 @@ message Notification {
   google.protobuf.Timestamp timestamp = 1;
   Feed feed = 2;
   string message = 3;
+}
+
+message Activity {
+  google.protobuf.Timestamp timestamp = 1;
+  Feed feed = 2;
+  bool state = 3;
 }
