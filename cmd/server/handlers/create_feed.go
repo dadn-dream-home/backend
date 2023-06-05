@@ -39,8 +39,7 @@ func (h CreateFeedHandler) CreateFeed(ctx context.Context, req *pb.CreateFeedReq
 	)
 	ctx = telemetry.ContextWithLogger(ctx, log)
 
-	err = h.PubSubFeeds().CreateFeed(ctx, req.Feed)
-	if err != nil {
+	if err := h.Repository().CreateFeed(ctx, req.Feed); err != nil {
 		return nil, err
 	}
 

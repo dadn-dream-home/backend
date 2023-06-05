@@ -56,7 +56,7 @@ func (r configRepository) GetSensorConfig(ctx context.Context, feedId string) (*
 	log := telemetry.GetLogger(ctx)
 
 	var config pb.SensorConfig
-	if err := r.conn.QueryRowContext(ctx, `
+	if err := r.db.QueryRow(`
 		SELECT has_notification, lower_threshold, upper_threshold
 		FROM   sensor_configs
 		WHERE  feed_id = ?
@@ -78,7 +78,7 @@ func (r configRepository) GetActuatorConfig(ctx context.Context, feedId string) 
 	log := telemetry.GetLogger(ctx)
 
 	var config pb.ActuatorConfig
-	if err := r.conn.QueryRowContext(ctx, `
+	if err := r.db.QueryRow(`
 		SELECT automatic, turn_on_cron_expr, turn_off_cron_expr
 		FROM actuator_configs
 		WHERE feed_id = ?
@@ -125,7 +125,7 @@ func (r configRepository) UpdateFeedConfig(ctx context.Context, config *pb.Confi
 func (r configRepository) UpdateSensorConfig(ctx context.Context, feedID string, config *pb.SensorConfig) error {
 	log := telemetry.GetLogger(ctx)
 
-	if _, err := r.conn.ExecContext(ctx, `
+	if _, err := r.db.Exec(`
 		INSERT INTO sensor_configs (feed_id, has_notification, lower_threshold, upper_threshold)
 		VALUES (?, ?, ?, ?)
 		ON CONFLICT (feed_id) DO UPDATE SET
@@ -145,7 +145,7 @@ func (r configRepository) UpdateSensorConfig(ctx context.Context, feedID string,
 func (r configRepository) UpdateActuatorConfig(ctx context.Context, feedID string, config *pb.ActuatorConfig) error {
 	log := telemetry.GetLogger(ctx)
 
-	if _, err := r.conn.ExecContext(ctx, `
+	if _, err := r.db.Exec(`
 		INSERT INTO actuator_configs (feed_id, automatic, turn_on_cron_expr, turn_off_cron_expr)
 		VALUES (?, ?, ?, ?)
 		ON CONFLICT (feed_id) DO UPDATE SET

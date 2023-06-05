@@ -11,7 +11,7 @@ import (
 func OpenDatabase(ctx context.Context, config Config) *sql.DB {
 	log := telemetry.GetLogger(ctx)
 
-	db, err := sql.Open("sqlite3", config.ConnectionString)
+	db, err := sql.Open(config.Driver, config.ConnectionString)
 	if err != nil {
 		log.Fatal("failed to open database", zap.Error(err))
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/dadn-dream-home/x/server/interceptors"
 	"github.com/dadn-dream-home/x/server/services"
 	"github.com/dadn-dream-home/x/server/services/repository"
-	"github.com/dadn-dream-home/x/server/startup/database"
 	"github.com/dadn-dream-home/x/server/state"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -38,23 +37,18 @@ type Server struct {
 	handlers.GetFeedConfigHandler
 	handlers.UpdateFeedConfigHandler
 
-	pubSubValues     state.PubSubValues
-	pubSubFeeds      state.PubSubFeeds
 	repository       state.Repository
-	notifier         state.Notifier
-	databaseListener state.DatabaseListener
+	databaseListener state.DatabaseHooker
+	mqttSubscriber   state.MQTTSubscriber
 }
 
 var _ state.State = (*Server)(nil)
 
-func NewServer(ctx context.Context, db *sql.DB, mqtt mqtt.Client) *Server {
+func NewServer(ctx context.Context, db *sql.DB, mqtt mqtt.Client, hooker state.DatabaseHooker) *Server {
 	s := &Server{}
-	conn := database.NewHookedConnection(ctx, db)
-	s.databaseListener = conn
-	s.repository = repository.NewRepository(ctx, s, conn.Conn)
-	s.pubSubFeeds = services.NewPubSubFeeds(ctx, s)
-	s.pubSubValues = services.NewPubSubValues(ctx, s, mqtt)
-	s.notifier = services.NewNotifier(ctx, s)
+	s.databaseListener = hooker
+	s.repository = repository.NewRepository(ctx, s, db)
+	s.mqttSubscriber = services.NewMQTTSubscriber(s, mqtt)
 
 	// Inject dependencies into handlers, basically:
 	// service.Handler = &handlers.Handler{State: &service}
@@ -83,24 +77,16 @@ func NewServer(ctx context.Context, db *sql.DB, mqtt mqtt.Client) *Server {
 	return s
 }
 
-func (s *Server) DatabaseListener() state.DatabaseListener {
+func (s *Server) DatabaseHooker() state.DatabaseHooker {
 	return s.databaseListener
 }
 
-func (s *Server) PubSubFeeds() state.PubSubFeeds {
-	return s.pubSubFeeds
-}
-
-func (s *Server) PubSubValues() state.PubSubValues {
-	return s.pubSubValues
+func (s *Server) MQTTSubscriber() state.MQTTSubscriber {
+	return s.mqttSubscriber
 }
 
 func (s *Server) Repository() state.Repository {
 	return s.repository
-}
-
-func (s *Server) Notifier() state.Notifier {
-	return s.notifier
 }
 
 func (s *Server) Serve(ctx context.Context, lis net.Listener) {
@@ -118,11 +104,9 @@ func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error {
-		return s.pubSubValues.Serve(ctx)
+		return s.mqttSubscriber.Serve(ctx)
 	})
-	group.Go(func() error {
-		return s.notifier.Serve(ctx)
-	})
+
 	go func() {
 		if err := s.grpcServer.Serve(lis); err != nil {
 			group.Go(func() error { return err })

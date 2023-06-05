@@ -5,7 +5,6 @@ go 1.20
 replace github.com/dadn-dream-home/x/protobuf => ../../protobuf
 
 require (
-	github.com/avast/retry-go/v4 v4.3.4
 	github.com/dadn-dream-home/x/protobuf v1.0.0
 	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/golang-migrate/migrate/v4 v4.15.2
@@ -28,6 +27,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
+	github.com/stretchr/testify v1.8.2 // indirect
 	github.com/zclconf/go-cty v1.12.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

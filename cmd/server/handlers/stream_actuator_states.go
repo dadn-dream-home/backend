@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/dadn-dream-home/x/server/state"
+	"github.com/dadn-dream-home/x/server/state/topic"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -44,39 +45,51 @@ func (s StreamActuatorStatesHandler) StreamActuatorStates(
 		return status.Errorf(codes.InvalidArgument, "feed type %s is not actuator", feed.Type)
 	}
 
-	ch, err := s.PubSubValues().Subscribe(ctx, req.Feed.Id)
+	// send latest value
+
+	bytes, err := s.Repository().GetFeedLatestValue(ctx, req.Feed.Id)
 	if err != nil {
 		return err
 	}
 
-	log.Info("begin streaming")
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Debug("cancelled streaming by client")
-			s.PubSubValues().Unsubscribe(ctx, req.Feed.Id, ch)
-			for msg := <-ch; msg != nil; msg = <-ch {
-				// skip remaining messages
-			}
-			log.Info("end streaming")
-			return nil
-
-		case msg := <-ch:
-			if msg == nil {
-				log.Info("end streaming")
-				return nil
-			}
-
-			state := string(msg) != "0"
-
-			if err = stream.Send(&pb.StreamActuatorStatesResponse{
-				State: state,
-			}); err != nil {
-				log.Warn("error sending response", zap.Error(err))
-			}
-
-			log.Info("sent state to client", zap.Bool("state", state))
+	if bytes != nil {
+		if err := stream.Send(&pb.StreamActuatorStatesResponse{
+			State: string(bytes) != "0",
+		}); err != nil {
+			return err
 		}
 	}
+
+	// subscribe to feed
+
+	unsubFn, errCh := s.DatabaseHooker().Subscribe(func(t topic.Topic, rowid int64) error {
+		feedID, bytes, err := s.Repository().GetFeedValueByRowID(ctx, rowid)
+		if err != nil {
+			return err
+		}
+
+		if feedID != req.Feed.Id {
+			return nil
+		}
+
+		if bytes != nil {
+			if err := stream.Send(&pb.StreamActuatorStatesResponse{
+				State: string(bytes) != "0",
+			}); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}, topic.Insert("feed_values"))
+
+	select {
+	case <-ctx.Done():
+		unsubFn()
+		return ctx.Err()
+	case err := <-errCh:
+		unsubFn()
+		return err
+	}
+
 }

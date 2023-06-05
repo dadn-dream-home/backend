@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/dadn-dream-home/x/server/state"
+	"github.com/dadn-dream-home/x/server/state/topic"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,41 +41,60 @@ func (s StreamSensorValuesHandler) StreamSensorValues(req *pb.StreamSensorValues
 		return status.Errorf(codes.InvalidArgument, "feed type %s is not sensor", feed.Type)
 	}
 
-	ch, err := s.PubSubValues().Subscribe(ctx, req.Feed.Id)
+	// send latest value
+	bytes, err := s.Repository().GetFeedLatestValue(ctx, req.Feed.Id)
+
 	if err != nil {
 		return err
 	}
 
-	log.Info("started streaming")
+	if bytes != nil {
+		value, err := strconv.ParseFloat(string(bytes), 32)
+		if err != nil {
+			return err
+		}
+
+		if err := stream.Send(&pb.StreamSensorValuesResponse{
+			Value: float32(value),
+		}); err != nil {
+			return err
+		}
+	}
+
+	// subscribe to new values
+
+	unsubFn, errCh := s.DatabaseHooker().Subscribe(func(_ topic.Topic, rowid int64) error {
+		feedID, bytes, err := s.Repository().GetFeedValueByRowID(ctx, rowid)
+		if err != nil {
+			return err
+		}
+
+		if feedID != req.Feed.Id {
+			return nil
+		}
+
+		value, err := strconv.ParseFloat(string(bytes), 32)
+		if err != nil {
+			return err
+		}
+
+		if err := stream.Send(&pb.StreamSensorValuesResponse{
+			Value: float32(value),
+		}); err != nil {
+			return err
+		}
+
+		return nil
+	}, topic.Insert("feed_values"))
 
 	for {
 		select {
-		case <-stream.Context().Done():
+		case <-ctx.Done():
 			log.Debug("cancelled streaming by client")
-			s.PubSubValues().Unsubscribe(ctx, req.Feed.Id, ch)
-			for msg := <-ch; msg != nil; msg = <-ch {
-				// skip remaining messages
-			}
-			log.Info("ended streaming")
+			unsubFn()
 			return nil
-
-		case msg := <-ch:
-			if msg == nil {
-				log.Info("ended streaming")
-				return nil
-			}
-
-			var value float64
-			if value, err = strconv.ParseFloat(string(msg), 32); err != nil {
-				log.Warn("error parsing float", zap.Error(err), zap.String("value", string(msg)))
-				continue
-			}
-
-			if err = stream.Send(&pb.StreamSensorValuesResponse{
-				Value: float32(value),
-			}); err != nil {
-				log.Warn("error sending message", zap.Error(err))
-			}
+		case err := <-errCh:
+			log.Error("failed to subscribe to new values", zap.Error(err))
 		}
 	}
 }

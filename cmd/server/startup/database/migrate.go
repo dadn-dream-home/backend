@@ -34,7 +34,7 @@ func Migrate(ctx context.Context, db *sql.DB, config Config) {
 
 	// init migrator
 
-	m, err := migrate.NewWithInstance("file", migrations, "sqlite3", instance)
+	m, err := migrate.NewWithInstance("file", migrations, config.Driver, instance)
 	if err != nil {
 		log.Fatal("failed to init migrator", zap.Error(err))
 	}

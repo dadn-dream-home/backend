@@ -11,6 +11,6 @@ func Insert(table string) Topic {
 	return Topic{sqlite3.SQLITE_INSERT, table}
 }
 
-func Delete(table string) Topic {
-	return Topic{sqlite3.SQLITE_DELETE, table}
-}
+// func Delete(table string) Topic {
+// 	return Topic{sqlite3.SQLITE_DELETE, table}
+// }

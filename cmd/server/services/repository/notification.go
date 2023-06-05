@@ -19,7 +19,7 @@ type notificationRepository struct {
 func (r notificationRepository) InsertNotification(ctx context.Context, notification *pb.Notification) error {
 	log := telemetry.GetLogger(ctx)
 
-	if _, err := r.conn.ExecContext(ctx,
+	if _, err := r.db.Exec(
 		"INSERT INTO notifications (feed_id, message) VALUES (?, ?)",
 		notification.Feed.Id, notification.Message,
 	); err != nil {
@@ -36,7 +36,7 @@ func (r notificationRepository) GetLatestNotification(ctx context.Context, feedI
 	log := telemetry.GetLogger(ctx)
 
 	var notification pb.Notification
-	if err := r.conn.QueryRowContext(ctx,
+	if err := r.db.QueryRow(
 		"SELECT feed_id, message, time FROM notifications WHERE feed_id = ? ORDER BY time DESC LIMIT 1",
 		feedId,
 	).Scan(&notification.Feed.Id, &notification.Message, notification.Timestamp); err != nil {

@@ -27,8 +27,7 @@ func (h DeleteFeedHandler) DeleteFeed(ctx context.Context, req *pb.DeleteFeedReq
 	log = log.With(zap.String("feed.id", req.Feed.Id))
 	ctx = telemetry.ContextWithLogger(ctx, log)
 
-	err := h.PubSubFeeds().DeleteFeed(ctx, req.Feed.Id)
-	if err != nil {
+	if err := h.Repository().DeleteFeed(ctx, req.Feed.Id); err != nil {
 		return nil, err
 	}
 

@@ -30,7 +30,9 @@ func TestMain(m *testing.M) {
 
 	ctx = telemetry.InitLogger(ctx)
 	config := startup.OpenConfig(ctx)
-	config.DatabaseConfig.ConnectionString = ":memory:"
+	config.DatabaseConfig.ConnectionString = "file::memory:?cache=shared&_mutex=full"
+	config.DatabaseConfig.Driver = uuid.NewString()
+	hooker := database.RegisterHook(ctx, config.DatabaseConfig)
 	mqttClient := startup.ConnectMQTT(ctx, config.MQTTConfig)
 
 	startServerAndClient = func(ctx context.Context) (pb.BackendServiceClient, mqtt.Client, func()) {
@@ -38,7 +40,7 @@ func TestMain(m *testing.M) {
 		database.Migrate(ctx, db, config.DatabaseConfig)
 
 		lis := bufconn.Listen(1024 * 1024)
-		server := startup.NewServer(ctx, db, mqttClient)
+		server := startup.NewServer(ctx, db, mqttClient, hooker)
 		go server.Serve(ctx, lis)
 
 		conn, err := grpc.DialContext(ctx, "",
@@ -396,5 +398,58 @@ func TestThresholdDisableNotification(t *testing.T) {
 
 	if len(notifications) != 0 {
 		t.Fatalf("expected 0 notification, got %d", len(notifications))
+	}
+}
+
+// tests for feed values
+
+func TestFeedValue(t *testing.T) {
+	client, mqtt, stop := startServerAndClient(ctx)
+	defer stop()
+
+	feedID := uuid.NewString()
+
+	if _, err := client.CreateFeed(ctx, &pb.CreateFeedRequest{
+		Feed: &pb.Feed{
+			Id:   feedID,
+			Type: pb.FeedType_TEMPERATURE,
+		},
+	}); err != nil {
+		t.Fatalf("error creating feed: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	stream, err := client.StreamSensorValues(ctx, &pb.StreamSensorValuesRequest{
+		Feed: &pb.Feed{
+			Id: feedID,
+		},
+	})
+	if err != nil {
+		t.Fatalf("error streaming feed values: %v", err)
+	}
+
+	if token := mqtt.Publish(feedID, 0, false, "1"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+	if token := mqtt.Publish(feedID, 0, false, "30"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+	if token := mqtt.Publish(feedID, 0, false, "99"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+
+	var feedValues []float32
+	for {
+		res, err := stream.Recv()
+		if err != nil || res == nil {
+			break
+		}
+
+		feedValues = append(feedValues, res.Value)
+	}
+
+	if len(feedValues) != 3 {
+		t.Fatalf("expected 3 feed values, got %d", len(feedValues))
 	}
 }

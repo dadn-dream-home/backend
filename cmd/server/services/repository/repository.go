@@ -8,7 +8,7 @@ import (
 )
 
 type baseRepository struct {
-	conn *sql.Conn
+	db *sql.DB
 }
 
 type repository struct {
@@ -19,9 +19,9 @@ type repository struct {
 	configRepository
 }
 
-func NewRepository(ctx context.Context, state state.State, conn *sql.Conn) state.Repository {
+func NewRepository(ctx context.Context, state state.State, db *sql.DB) state.Repository {
 	r := repository{}
-	r.conn = conn
+	r.db = db
 	r.feedRepository = feedRepository{r.baseRepository}
 	r.feedValueRepository = feedValueRepository{r.baseRepository}
 	r.notificationRepository = notificationRepository{r.baseRepository}

@@ -37,7 +37,7 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 		return err
 	}
 
-	unsubFn, errCh := h.DatabaseListener().Subscribe(func(t topic.Topic, rowid int64) error {
+	unsubFn, errCh := h.DatabaseHooker().Subscribe(func(t topic.Topic, rowid int64) error {
 		switch t {
 		case topic.Insert("feeds"):
 			feed, err := h.Repository().GetFeedByRowID(ctx, rowid)
@@ -50,8 +50,8 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 					Addeds: []*pb.Feed{feed},
 				},
 			})
-		case topic.Delete("feeds"):
-			feed, err := h.Repository().GetFeedByRowID(ctx, rowid)
+		case topic.Insert("deleted_feeds"):
+			feed, err := h.Repository().GetDeletedFeedByRowID(ctx, rowid)
 			if err != nil {
 				return err
 			}
@@ -65,7 +65,7 @@ func (h StreamFeedsChangesHandler) StreamFeedsChanges(
 			log.Error("unknown topic operation", zap.Int("topic.op", t.Op))
 			return nil
 		}
-	}, topic.Insert("feeds"), topic.Delete("feeds"))
+	}, topic.Insert("feeds"), topic.Insert("deleted_feeds"))
 
 	select {
 	case <-ctx.Done():

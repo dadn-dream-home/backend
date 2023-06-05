@@ -1,10 +1,16 @@
 package handlers
 
 import (
+	"fmt"
+	"strconv"
+
 	pb "github.com/dadn-dream-home/x/protobuf"
+	"github.com/dadn-dream-home/x/server/errutils"
 	"github.com/dadn-dream-home/x/server/state"
+	"github.com/dadn-dream-home/x/server/state/topic"
 	"github.com/dadn-dream-home/x/server/telemetry"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type StreamNotificationsHandler struct {
@@ -15,40 +21,75 @@ func (h StreamNotificationsHandler) StreamNotifications(req *pb.StreamNotificati
 	ctx := stream.Context()
 	log := telemetry.GetLogger(ctx)
 
-	ch, err := h.Notifier().Subscribe(stream.Context())
-	if err != nil {
-		return err
-	}
-
-	log.Info("started streaming")
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Debug("cancelled streaming by client")
-			h.Notifier().Unsubscribe(ctx, ch)
-			for notification := <-ch; notification != nil; notification = <-ch {
-				// skip remaining messages
-			}
-			log.Info("ended streaming")
-			return nil
-
-		case notification := <-ch:
-			if notification == nil {
-				log.Info("ended streaming")
-				return nil
-			}
-
-			log := log.With(zap.String("feed.id", notification.Feed.Id))
-			log.Debug("got notification", zap.String("notification.message", notification.Message))
-
-			if err = stream.Send(&pb.StreamNotificationsResponse{
-				Notification: notification,
-			}); err != nil {
-				log.Warn("failed to send notification", zap.Error(err))
-			}
-
-			log.Info("sent notification to client")
+	unsubFn, errCh := h.DatabaseHooker().Subscribe(func(t topic.Topic, rowid int64) error {
+		feedID, bytes, err := h.Repository().GetFeedValueByRowID(ctx, rowid)
+		if err != nil {
+			return err
 		}
+
+		feed, err := h.Repository().GetFeed(ctx, feedID)
+		if err != nil {
+			return err
+		}
+
+		feedConfig, err := h.Repository().GetFeedConfig(ctx, feed.Id)
+		if err != nil {
+			return err
+		}
+
+		log.Debug("feed config", zap.Any("config", feedConfig))
+
+		if !feedConfig.GetSensorConfig().HasNotification {
+			return nil
+		}
+
+		value, err := strconv.ParseFloat(string(bytes), 64)
+		if err != nil {
+			log.Warn("error parsing value", zap.Error(err), zap.String("value", string(bytes)))
+			return nil
+		}
+
+		var notification *pb.Notification
+
+		if value < float64(feedConfig.GetSensorConfig().LowerThreshold) {
+			notification = &pb.Notification{
+				Timestamp: timestamppb.Now(),
+				Feed:      feed,
+				Message:   fmt.Sprintf("%s (feed %s) is too low: %f", feed.Type, feed.Id, value),
+			}
+		} else if value > float64(feedConfig.GetSensorConfig().UpperThreshold) {
+			notification = &pb.Notification{
+				Timestamp: timestamppb.Now(),
+				Feed:      feed,
+				Message:   fmt.Sprintf("%s (feed %s) is too high: %f", feed.Type, feed.Id, value),
+			}
+		}
+
+		if notification == nil {
+			return nil
+		}
+
+		err = h.Repository().InsertNotification(ctx, notification)
+		if err != nil {
+			return errutils.Internal(ctx,
+				fmt.Errorf("failed to insert notification: %w", err))
+		}
+
+		if err := stream.Send(&pb.StreamNotificationsResponse{
+			Notification: notification,
+		}); err != nil {
+			return err
+		}
+
+		return nil
+	}, topic.Insert("feed_values"))
+
+	select {
+	case <-ctx.Done():
+		unsubFn()
+		return ctx.Err()
+	case err := <-errCh:
+		unsubFn()
+		return err
 	}
 }

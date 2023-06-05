@@ -24,7 +24,7 @@ var _ state.FeedRepository = feedRepository{}
 func (r feedRepository) CreateFeed(ctx context.Context, feed *pb.Feed) error {
 	log := telemetry.GetLogger(ctx)
 
-	if res, err := r.conn.ExecContext(ctx, "INSERT OR IGNORE INTO feeds (id, type) VALUES (?, ?)", feed.Id, feed.Type); err != nil {
+	if res, err := r.db.Exec("INSERT OR IGNORE INTO feeds (id, type) VALUES (?, ?)", feed.Id, feed.Type); err != nil {
 		return errutils.Internal(ctx, fmt.Errorf(
 			"error inserting feed into database: %w", err))
 	} else if n, _ := res.RowsAffected(); n == 0 {
@@ -38,12 +38,12 @@ func (r feedRepository) CreateFeed(ctx context.Context, feed *pb.Feed) error {
 	// create feed config
 	switch feed.Type {
 	case pb.FeedType_TEMPERATURE, pb.FeedType_HUMIDITY:
-		if _, err := r.conn.ExecContext(ctx, "INSERT OR IGNORE INTO sensor_configs (feed_id) VALUES (?)", feed.Id); err != nil {
+		if _, err := r.db.Exec("INSERT OR IGNORE INTO sensor_configs (feed_id) VALUES (?)", feed.Id); err != nil {
 			return errutils.Internal(ctx, fmt.Errorf(
 				"error inserting sensor config into database: %w", err))
 		}
 	case pb.FeedType_LIGHT:
-		if _, err := r.conn.ExecContext(ctx, "INSERT OR IGNORE INTO actuator_configs (feed_id) VALUES (?)", feed.Id); err != nil {
+		if _, err := r.db.Exec("INSERT OR IGNORE INTO actuator_configs (feed_id) VALUES (?)", feed.Id); err != nil {
 			return errutils.Internal(ctx, fmt.Errorf(
 				"error inserting actuator config into database: %w", err))
 		}
@@ -59,7 +59,13 @@ func (r feedRepository) CreateFeed(ctx context.Context, feed *pb.Feed) error {
 func (r feedRepository) DeleteFeed(ctx context.Context, feedId string) error {
 	log := telemetry.GetLogger(ctx)
 
-	res, err := r.conn.ExecContext(ctx, "DELETE FROM feeds WHERE id = ?", feedId)
+	res, err := r.db.Exec(`
+	BEGIN TRANSACTION;
+	INSERT INTO deleted_feeds(id, type, description)
+	SELECT id, type, description FROM feeds WHERE id = ?;
+	DELETE FROM feeds WHERE id = ?;
+	COMMIT;
+	`, feedId, feedId)
 	if err != nil {
 		return errutils.Internal(ctx, fmt.Errorf(
 			"error deleting feed from database: %w", err))
@@ -83,7 +89,7 @@ func (r feedRepository) DeleteFeed(ctx context.Context, feedId string) error {
 func (r feedRepository) updateFeed(ctx context.Context, feed *pb.Feed) error {
 	log := telemetry.GetLogger(ctx)
 
-	if res, err := r.conn.ExecContext(ctx, "UPDATE feeds SET type = ? WHERE id = ?", feed.Type, feed.Id); err != nil {
+	if res, err := r.db.Exec("UPDATE feeds SET type = ? WHERE id = ?", feed.Type, feed.Id); err != nil {
 		return errutils.Internal(ctx, fmt.Errorf(
 			"error updating feed in database: %w", err))
 	} else if n, _ := res.RowsAffected(); n == 0 {
@@ -103,7 +109,7 @@ func (r feedRepository) GetFeed(ctx context.Context, feedId string) (*pb.Feed, e
 	log := telemetry.GetLogger(ctx)
 
 	var feed pb.Feed
-	if err := r.conn.QueryRowContext(ctx, "SELECT id, type FROM feeds WHERE id = ?", feedId).Scan(&feed.Id, &feed.Type); err != nil {
+	if err := r.db.QueryRow("SELECT id, type FROM feeds WHERE id = ?", feedId).Scan(&feed.Id, &feed.Type); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errutils.NotFound(ctx, &errdetails.ResourceInfo{
 				ResourceType: "Feed",
@@ -124,7 +130,7 @@ func (r feedRepository) GetFeedByRowID(ctx context.Context, rowID int64) (*pb.Fe
 	log := telemetry.GetLogger(ctx)
 
 	var feed pb.Feed
-	if err := r.conn.QueryRowContext(ctx, "SELECT id, type FROM feeds WHERE rowid = ?", rowID).Scan(&feed.Id, &feed.Type); err != nil {
+	if err := r.db.QueryRow("SELECT id, type FROM feeds WHERE rowid = ?", rowID).Scan(&feed.Id, &feed.Type); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errutils.NotFound(ctx, &errdetails.ResourceInfo{
 				ResourceType: "Feed",
@@ -141,10 +147,31 @@ func (r feedRepository) GetFeedByRowID(ctx context.Context, rowID int64) (*pb.Fe
 	return &feed, nil
 }
 
+func (r feedRepository) GetDeletedFeedByRowID(ctx context.Context, rowID int64) (*pb.Feed, error) {
+	log := telemetry.GetLogger(ctx)
+
+	var feed pb.Feed
+	if err := r.db.QueryRow("SELECT id, type FROM deleted_feeds WHERE rowid = ?", rowID).Scan(&feed.Id, &feed.Type); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errutils.NotFound(ctx, &errdetails.ResourceInfo{
+				ResourceType: "Feed",
+				ResourceName: fmt.Sprintf("rowid %d", rowID),
+				Description:  fmt.Sprintf("Deleted feed with rowid %d not found", rowID),
+			})
+		}
+		return nil, errutils.Internal(ctx, fmt.Errorf(
+			"error querying feed from database: %w", err))
+	}
+
+	log.Info("got feed %s from database successfully", zap.String("feed.id", feed.Id))
+
+	return &feed, nil
+}
+
 func (r feedRepository) ListFeeds(ctx context.Context) ([]*pb.Feed, error) {
 	log := telemetry.GetLogger(ctx)
 
-	rows, err := r.conn.QueryContext(ctx, "SELECT id, type FROM feeds")
+	rows, err := r.db.Query("SELECT id, type FROM feeds")
 	if err != nil {
 		return nil, errutils.Internal(ctx, fmt.Errorf(
 			"error querying feeds from database: %w", err))

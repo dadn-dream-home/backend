@@ -8,35 +8,21 @@ import (
 )
 
 type State interface {
-	DatabaseListener() DatabaseListener
-	PubSubValues() PubSubValues
-	PubSubFeeds() PubSubFeeds
+	DatabaseHooker() DatabaseHooker
+	MQTTSubscriber() MQTTSubscriber
 	Repository() Repository
-	Notifier() Notifier
 }
 
-type DatabaseListener interface {
+type DatabaseHooker interface {
 	Subscribe(
 		callback func(t topic.Topic, rowid int64) error,
 		topics ...topic.Topic,
 	) (unsubscribe func(), errCh <-chan error)
 }
 
-type PubSubValues interface {
+type MQTTSubscriber interface {
 	Serve(ctx context.Context) error
-
-	// If err != nil, feedID doesn't exist
-	Subscribe(ctx context.Context, feedID string) (<-chan []byte, error)
-
-	Unsubscribe(ctx context.Context, feedID string, ch <-chan []byte)
 	Publish(ctx context.Context, feedID string, value []byte) error
-}
-
-type PubSubFeeds interface {
-	Subscribe(ctx context.Context) (<-chan *pb.FeedsChange, error)
-	Unsubscribe(ctx context.Context, ch <-chan *pb.FeedsChange)
-	CreateFeed(ctx context.Context, feed *pb.Feed) error
-	DeleteFeed(ctx context.Context, feedID string) error
 }
 
 type Repository interface {
@@ -50,6 +36,7 @@ type FeedRepository interface {
 	CreateFeed(ctx context.Context, feed *pb.Feed) error
 	GetFeed(ctx context.Context, feedID string) (*pb.Feed, error)
 	GetFeedByRowID(ctx context.Context, rowID int64) (*pb.Feed, error)
+	GetDeletedFeedByRowID(ctx context.Context, rowID int64) (*pb.Feed, error)
 	ListFeeds(ctx context.Context) ([]*pb.Feed, error)
 	DeleteFeed(ctx context.Context, feedID string) error
 }
@@ -57,7 +44,7 @@ type FeedRepository interface {
 type FeedValueRepository interface {
 	InsertFeedValue(ctx context.Context, feedID string, value []byte) error
 	GetFeedLatestValue(ctx context.Context, feedID string) ([]byte, error)
-	GetFeedValueByRowID(ctx context.Context, rowID int64) ([]byte, error)
+	GetFeedValueByRowID(ctx context.Context, rowID int64) (string, []byte, error)
 }
 
 type NotificationRepository interface {
@@ -68,10 +55,4 @@ type NotificationRepository interface {
 type ConfigRepository interface {
 	GetFeedConfig(ctx context.Context, feedID string) (*pb.Config, error)
 	UpdateFeedConfig(ctx context.Context, config *pb.Config) error
-}
-
-type Notifier interface {
-	Serve(ctx context.Context) error
-	Subscribe(ctx context.Context) (<-chan *pb.Notification, error)
-	Unsubscribe(ctx context.Context, ch <-chan *pb.Notification)
 }

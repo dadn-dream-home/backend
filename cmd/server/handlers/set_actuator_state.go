@@ -34,8 +34,7 @@ func (h SetActuatorStateHandler) SetActuatorState(ctx context.Context, req *pb.S
 		payload = []byte("0")
 	}
 
-	err := h.PubSubValues().Publish(ctx, req.Feed.Id, payload)
-	if err != nil {
+	if err := h.MQTTSubscriber().Publish(ctx, req.Feed.Id, payload); err != nil {
 		return nil, err
 	}
 
