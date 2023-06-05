@@ -56,17 +56,49 @@ func (r configRepository) GetSensorConfig(ctx context.Context, feedId string) (*
 	log := telemetry.GetLogger(ctx)
 
 	var config pb.SensorConfig
+	var lower pb.Threshold
+	var lowerFeedId sql.NullString
+	var lowerFeedType sql.NullInt32
+	var upper pb.Threshold
+	var upperFeedId sql.NullString
+	var upperFeedType sql.NullInt32
 	if err := r.db.QueryRow(`
-		SELECT has_notification, lower_threshold, upper_threshold
+		SELECT has_notification,
+			   lower_threshold, lower_has_trigger, lower_state,
+			   l.id, l.type,
+			   upper_threshold, upper_has_trigger, upper_state,
+			   u.id, u.type
 		FROM   sensor_configs
+			LEFT JOIN feeds AS l on l.id = sensor_configs.lower_feed_id
+			LEFT JOIN feeds AS u on u.id = sensor_configs.upper_feed_id
 		WHERE  feed_id = ?
 	`, feedId,
-	).Scan(&config.HasNotification, &config.LowerThreshold, &config.UpperThreshold); err != nil {
+	).Scan(&config.HasNotification,
+		&lower.Threshold, &lower.HasTrigger, &lower.State,
+		&lowerFeedId, &lowerFeedType,
+		&upper.Threshold, &upper.HasTrigger, &upper.State,
+		&upperFeedId, &upperFeedType,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, errutils.Internal(ctx, fmt.Errorf(
 			"error querying sensor config from database: %w", err))
+	}
+
+	config.LowerThreshold = &lower
+	if lowerFeedId.Valid {
+		config.LowerThreshold.Feed = &pb.Feed{
+			Id:   lowerFeedId.String,
+			Type: pb.FeedType(lowerFeedType.Int32),
+		}
+	}
+	config.UpperThreshold = &upper
+	if upperFeedId.Valid {
+		config.UpperThreshold.Feed = &pb.Feed{
+			Id:   upperFeedId.String,
+			Type: pb.FeedType(upperFeedType.Int32),
+		}
 	}
 
 	log.Info("got sensor config from database successfully")
@@ -125,14 +157,46 @@ func (r configRepository) UpdateFeedConfig(ctx context.Context, config *pb.Confi
 func (r configRepository) UpdateSensorConfig(ctx context.Context, feedID string, config *pb.SensorConfig) error {
 	log := telemetry.GetLogger(ctx)
 
+	lower := &pb.Threshold{}
+	var lowerFeedID sql.NullString
+	if config.LowerThreshold != nil {
+		lower = config.LowerThreshold
+		if lower.Feed != nil {
+			lowerFeedID.String = config.LowerThreshold.Feed.Id
+			lowerFeedID.Valid = true
+		}
+	}
+	upper := &pb.Threshold{}
+	var upperFeedID sql.NullString
+	if config.UpperThreshold != nil {
+		upper = config.UpperThreshold
+		if upper.Feed != nil {
+			upperFeedID.String = config.UpperThreshold.Feed.Id
+			upperFeedID.Valid = true
+		}
+	}
+
 	if _, err := r.db.Exec(`
-		INSERT INTO sensor_configs (feed_id, has_notification, lower_threshold, upper_threshold)
-		VALUES (?, ?, ?, ?)
-		ON CONFLICT (feed_id) DO UPDATE SET
-			has_notification = EXCLUDED.has_notification,
-			lower_threshold = EXCLUDED.lower_threshold,
-			upper_threshold = EXCLUDED.upper_threshold
-	`, feedID, config.HasNotification, config.LowerThreshold, config.UpperThreshold); err != nil {
+		INSERT OR REPLACE INTO sensor_configs (
+			feed_id, has_notification,
+			lower_threshold, lower_has_trigger, lower_state,
+			lower_feed_id,
+			upper_threshold, upper_has_trigger, upper_state,
+			upper_feed_id
+		)
+		VALUES (
+			?, ?,
+			?, ?, ?,
+			?,
+			?, ?, ?,
+			?
+		)
+	`, feedID, config.HasNotification,
+		lower.Threshold, lower.HasTrigger, lower.State,
+		lowerFeedID,
+		upper.Threshold, upper.HasTrigger, upper.State,
+		upperFeedID,
+	); err != nil {
 		return errutils.Internal(ctx, fmt.Errorf(
 			"error inserting sensor config into database: %w", err))
 	}
@@ -146,12 +210,8 @@ func (r configRepository) UpdateActuatorConfig(ctx context.Context, feedID strin
 	log := telemetry.GetLogger(ctx)
 
 	if _, err := r.db.Exec(`
-		INSERT INTO actuator_configs (feed_id, automatic, turn_on_cron_expr, turn_off_cron_expr)
+		INSERT OR REPLACE INTO actuator_configs (feed_id, automatic, turn_on_cron_expr, turn_off_cron_expr)
 		VALUES (?, ?, ?, ?)
-		ON CONFLICT (feed_id) DO UPDATE SET
-			automatic = EXCLUDED.automatic,
-			turn_on_cron_expr = EXCLUDED.turn_on_cron_expr,
-			turn_off_cron_expr = EXCLUDED.turn_off_cron_expr
 	`, feedID, config.Automatic, config.TurnOnCronExpr, config.TurnOffCronExpr); err != nil {
 		return errutils.Internal(ctx, fmt.Errorf(
 			"error inserting actuator config into database: %w", err))

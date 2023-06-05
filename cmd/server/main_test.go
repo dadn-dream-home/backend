@@ -247,8 +247,12 @@ func TestUpdateFeedConfig(t *testing.T) {
 			TypeConfig: &pb.Config_SensorConfig{
 				SensorConfig: &pb.SensorConfig{
 					HasNotification: true,
-					UpperThreshold:  10,
-					LowerThreshold:  40,
+					LowerThreshold: &pb.Threshold{
+						Threshold: 10,
+					},
+					UpperThreshold: &pb.Threshold{
+						Threshold: 40,
+					},
 				},
 			},
 		},
@@ -281,8 +285,12 @@ func TestLowThresholdNotification(t *testing.T) {
 			TypeConfig: &pb.Config_SensorConfig{
 				SensorConfig: &pb.SensorConfig{
 					HasNotification: true,
-					LowerThreshold:  2,
-					UpperThreshold:  98,
+					LowerThreshold: &pb.Threshold{
+						Threshold: 2,
+					},
+					UpperThreshold: &pb.Threshold{
+						Threshold: 98,
+					},
 				},
 			},
 		},
@@ -355,8 +363,12 @@ func TestThresholdDisableNotification(t *testing.T) {
 			TypeConfig: &pb.Config_SensorConfig{
 				SensorConfig: &pb.SensorConfig{
 					HasNotification: false,
-					LowerThreshold:  2,
-					UpperThreshold:  98,
+					LowerThreshold: &pb.Threshold{
+						Threshold: 2,
+					},
+					UpperThreshold: &pb.Threshold{
+						Threshold: 98,
+					},
 				},
 			},
 		},
@@ -501,5 +513,84 @@ func TestActivityLog(t *testing.T) {
 
 	if len(activities) != 3 {
 		t.Fatalf("expected 3 activity log, got %d", len(activities))
+	}
+}
+
+func TestActivityLogWithTriggerConfig(t *testing.T) {
+	client, mqtt, stop := startServerAndClient(ctx)
+	defer stop()
+
+	feedA := &pb.Feed{
+		Id:   uuid.NewString(),
+		Type: pb.FeedType_TEMPERATURE,
+	}
+
+	if _, err := client.CreateFeed(ctx, &pb.CreateFeedRequest{
+		Feed: feedA,
+	}); err != nil {
+		t.Fatalf("error creating feed: %v", err)
+	}
+
+	feedB := &pb.Feed{
+		Id:   uuid.NewString(),
+		Type: pb.FeedType_LIGHT,
+	}
+
+	if _, err := client.CreateFeed(ctx, &pb.CreateFeedRequest{
+		Feed: feedB,
+	}); err != nil {
+		t.Fatalf("error creating feed: %v", err)
+	}
+
+	if _, err := client.UpdateFeedConfig(ctx, &pb.UpdateFeedConfigRequest{
+		Config: &pb.Config{
+			FeedConfig: feedA,
+			TypeConfig: &pb.Config_SensorConfig{
+				SensorConfig: &pb.SensorConfig{
+					HasNotification: true,
+					LowerThreshold: &pb.Threshold{
+						Threshold:  10,
+						HasTrigger: true,
+						Feed:       feedB,
+						State:      true,
+					},
+					UpperThreshold: &pb.Threshold{
+						Threshold:  90,
+						HasTrigger: true,
+						Feed:       feedB,
+						State:      false,
+					},
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("error updating feed config: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	stream, err := client.StreamActivities(ctx, &pb.StreamActivitiesRequest{})
+	if err != nil {
+		t.Fatalf("error streaming activity log: %v", err)
+	}
+
+	if token := mqtt.Publish(feedA.Id, 0, false, "0"); token.Wait() && token.Error() != nil {
+		t.Fatalf("error publishing to mqtt: %v", token.Error())
+	}
+
+	var activities []*pb.Activity
+	for {
+		res, err := stream.Recv()
+		if err != nil || res == nil {
+			break
+		}
+
+		activities = append(activities, res.Activity)
+	}
+
+	t.Logf("activities: %v", activities)
+
+	if len(activities) != 1 {
+		t.Fatalf("expected 1 activity log, got %d", len(activities))
 	}
 }

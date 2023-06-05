@@ -74,17 +74,35 @@ func (l logger) logFeedValues(ctx context.Context, bytes []byte, feed *pb.Feed, 
 
 	var notification *pb.Notification
 
-	if value < float64(config.LowerThreshold) {
+	if value < float64(config.LowerThreshold.Threshold) {
 		notification = &pb.Notification{
 			Timestamp: timestamppb.Now(),
 			Feed:      feed,
 			Message:   fmt.Sprintf("%s (feed %s) is too low: %f", feed.Type, feed.Id, value),
 		}
-	} else if value > float64(config.UpperThreshold) {
+		if config.LowerThreshold.HasTrigger {
+			value := []byte("0")
+			if config.LowerThreshold.State {
+				value = []byte("1")
+			}
+			if err := l.MQTTSubscriber().Publish(ctx, config.LowerThreshold.Feed.Id, value); err != nil {
+				return err
+			}
+		}
+	} else if value > float64(config.UpperThreshold.Threshold) {
 		notification = &pb.Notification{
 			Timestamp: timestamppb.Now(),
 			Feed:      feed,
 			Message:   fmt.Sprintf("%s (feed %s) is too high: %f", feed.Type, feed.Id, value),
+		}
+		if config.UpperThreshold.HasTrigger {
+			value := []byte("0")
+			if config.UpperThreshold.State {
+				value = []byte("1")
+			}
+			if err := l.MQTTSubscriber().Publish(ctx, config.UpperThreshold.Feed.Id, value); err != nil {
+				return err
+			}
 		}
 	}
 

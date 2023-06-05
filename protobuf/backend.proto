@@ -107,8 +107,15 @@ message Config {
 
 message SensorConfig {
   bool hasNotification = 1;
-  float lowerThreshold = 2;
-  float upperThreshold = 3;
+  Threshold lowerThreshold = 2;
+  Threshold upperThreshold = 3;
+}
+
+message Threshold {
+  float threshold = 1;
+  bool hasTrigger = 2;
+  Feed feed = 3;
+  bool state = 4;
 }
 
 message ActuatorConfig {
