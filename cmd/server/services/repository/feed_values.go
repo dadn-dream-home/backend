@@ -109,13 +109,16 @@ func (r feedValueRepository) ListActivities(ctx context.Context) ([]*pb.Activity
 	var activities []*pb.Activity
 	for rows.Next() {
 		var activity pb.Activity
+		var feed pb.Feed
 		var value []byte
-		var t time.Time
-		if err := rows.Scan(&activity.Feed.Id, &activity.Feed.Type, &value, &t); err != nil {
+		var tstr string
+		if err := rows.Scan(&feed.Id, &feed.Type, &value, &tstr); err != nil {
 			return nil, errutils.Internal(ctx, fmt.Errorf(
 				"error scanning feed value from database: %w", err))
 		}
+		activity.Feed = &feed
 		activity.State = string(value) != "0"
+		t, _ := time.ParseInLocation("2006-01-02 15:04:05", tstr, time.UTC)
 		activity.Timestamp = timestamppb.New(t)
 		activities = append(activities, &activity)
 	}
