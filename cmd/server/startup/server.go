@@ -38,10 +38,11 @@ type Server struct {
 	handlers.UpdateFeedConfigHandler
 	handlers.StreamActivitiesHandler
 
-	repository       state.Repository
-	databaseHooker   state.DatabaseHooker
-	mqttSubscriber   state.MQTTSubscriber
-	feedValuesLogger state.FeedValuesLogger
+	repository         state.Repository
+	databaseHooker     state.DatabaseHooker
+	mqttSubscriber     state.MQTTSubscriber
+	feedValuesLogger   state.FeedValuesLogger
+	automaticScheduler state.AutomaticScheduler
 }
 
 var _ state.State = (*Server)(nil)
@@ -52,6 +53,7 @@ func NewServer(ctx context.Context, db *sql.DB, mqtt mqtt.Client, hooker state.D
 	s.repository = repository.NewRepository(ctx, s, db)
 	s.mqttSubscriber = services.NewMQTTSubscriber(s, mqtt)
 	s.feedValuesLogger = services.NewFeedValuesLogger(s)
+	s.automaticScheduler = services.NewAutomaticScheduler(s)
 
 	// Inject dependencies into handlers, basically:
 	// service.Handler = &handlers.Handler{State: &service}
@@ -93,6 +95,10 @@ func (s *Server) FeedValuesLogger() state.FeedValuesLogger {
 	return s.feedValuesLogger
 }
 
+func (s *Server) AutomaticScheduler() state.AutomaticScheduler {
+	return s.automaticScheduler
+}
+
 func (s *Server) Repository() state.Repository {
 	return s.repository
 }
@@ -116,6 +122,9 @@ func (s *Server) Serve(ctx context.Context, lis net.Listener) {
 	})
 	group.Go(func() error {
 		return s.feedValuesLogger.Serve(ctx)
+	})
+	group.Go(func() error {
+		return s.automaticScheduler.Serve(ctx)
 	})
 
 	go func() {

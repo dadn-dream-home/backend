@@ -221,3 +221,73 @@ func (r configRepository) UpdateActuatorConfig(ctx context.Context, feedID strin
 
 	return nil
 }
+
+func (r configRepository) ListActuatorConfigs(ctx context.Context) ([]*pb.Config, error) {
+	log := telemetry.GetLogger(ctx)
+
+	rows, err := r.db.Query(`
+		SELECT id, type, automatic, turn_on_cron_expr, turn_off_cron_expr
+		FROM actuator_configs, feeds
+		WHERE feed_id = id
+	`)
+	if err != nil {
+		return nil, errutils.Internal(ctx, fmt.Errorf(
+			"error querying actuator configs from database: %w", err))
+	}
+	defer rows.Close()
+
+	var configs []*pb.Config
+	for rows.Next() {
+		actuatorConfig := &pb.ActuatorConfig{}
+		feed := &pb.Feed{}
+		if err := rows.Scan(&feed.Id, &feed.Type, &actuatorConfig.Automatic, &actuatorConfig.TurnOnCronExpr, &actuatorConfig.TurnOffCronExpr); err != nil {
+			return nil, errutils.Internal(ctx, fmt.Errorf(
+				"error scanning actuator config from database: %w", err))
+		}
+		config := &pb.Config{}
+		config.TypeConfig = &pb.Config_ActuatorConfig{ActuatorConfig: actuatorConfig}
+		config.FeedConfig = feed
+		configs = append(configs, config)
+	}
+
+	log.Info("got actuator configs from database successfully")
+
+	return configs, nil
+}
+
+func (r configRepository) GetActuatorConfigByRowId(ctx context.Context, rowId int64) (*pb.Config, error) {
+	log := telemetry.GetLogger(ctx)
+
+	var feedId string
+	var feedType int32
+	var automatic bool
+	var turnOnCronExpr string
+	var turnOffCronExpr string
+	if err := r.db.QueryRow(`
+		SELECT feed_id, f.type, automatic, turn_on_cron_expr, turn_off_cron_expr
+		FROM actuator_configs, feeds AS f
+		WHERE feed_id = f.id AND rowid = ?
+	`, rowId,
+	).Scan(&feedId, &feedType, &automatic, &turnOnCronExpr, &turnOffCronExpr); err != nil {
+		return nil, errutils.Internal(ctx, fmt.Errorf(
+			"error querying actuator config from database: %w", err))
+	}
+
+	config := &pb.Config{
+		FeedConfig: &pb.Feed{
+			Id:   feedId,
+			Type: pb.FeedType(feedType),
+		},
+		TypeConfig: &pb.Config_ActuatorConfig{
+			ActuatorConfig: &pb.ActuatorConfig{
+				Automatic:       automatic,
+				TurnOnCronExpr:  turnOnCronExpr,
+				TurnOffCronExpr: turnOffCronExpr,
+			},
+		},
+	}
+
+	log.Info("got actuator config from database successfully")
+
+	return config, nil
+}

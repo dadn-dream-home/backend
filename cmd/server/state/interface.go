@@ -11,6 +11,7 @@ type State interface {
 	DatabaseHooker() DatabaseHooker
 	MQTTSubscriber() MQTTSubscriber
 	FeedValuesLogger() FeedValuesLogger
+	AutomaticScheduler() AutomaticScheduler
 	Repository() Repository
 }
 
@@ -27,6 +28,10 @@ type MQTTSubscriber interface {
 }
 
 type FeedValuesLogger interface {
+	Serve(ctx context.Context) error
+}
+
+type AutomaticScheduler interface {
 	Serve(ctx context.Context) error
 }
 
@@ -62,4 +67,6 @@ type NotificationRepository interface {
 type ConfigRepository interface {
 	GetFeedConfig(ctx context.Context, feedID string) (*pb.Config, error)
 	UpdateFeedConfig(ctx context.Context, config *pb.Config) error
+	ListActuatorConfigs(ctx context.Context) ([]*pb.Config, error)
+	GetActuatorConfigByRowId(ctx context.Context, rowID int64) (*pb.Config, error)
 }
