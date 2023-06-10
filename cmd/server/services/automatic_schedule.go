@@ -61,6 +61,10 @@ func (s *scheduler) Serve(ctx context.Context) error {
 func (s *scheduler) handleActuatorConfigInsert(ctx context.Context, config *pb.Config) {
 	s.Lock()
 	defer s.Unlock()
+	if !config.GetActuatorConfig().Automatic {
+		s.entries[config.FeedConfig.Id] = make([]cron.EntryID, 0)
+		return
+	}
 	s.entries[config.FeedConfig.Id] = make([]cron.EntryID, 2)
 	s.entries[config.FeedConfig.Id][0], _ = s.AddFunc(config.GetActuatorConfig().TurnOffCronExpr, func() {
 		s.MQTTSubscriber().Publish(ctx, config.FeedConfig.Id, []byte("0"))

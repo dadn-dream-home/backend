@@ -264,9 +264,9 @@ func (r configRepository) GetActuatorConfigByRowId(ctx context.Context, rowId in
 	var turnOnCronExpr string
 	var turnOffCronExpr string
 	if err := r.db.QueryRow(`
-		SELECT feed_id, f.type, automatic, turn_on_cron_expr, turn_off_cron_expr
-		FROM actuator_configs, feeds AS f
-		WHERE feed_id = f.id AND rowid = ?
+		SELECT a.feed_id, f.type, a.automatic, a.turn_on_cron_expr, a.turn_off_cron_expr
+		FROM actuator_configs AS a, feeds AS f
+		WHERE a.feed_id = f.id AND a.rowid = ?
 	`, rowId,
 	).Scan(&feedId, &feedType, &automatic, &turnOnCronExpr, &turnOffCronExpr); err != nil {
 		return nil, errutils.Internal(ctx, fmt.Errorf(
