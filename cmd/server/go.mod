@@ -17,6 +17,7 @@ require (
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/go-logr/zapr v1.2.4
 )
 
 require (

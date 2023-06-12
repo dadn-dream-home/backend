@@ -6,7 +6,7 @@ CREATE TABLE feed_values (
     time TIMESTAMPT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     feed_id TEXT NOT NULL,
     value BLOB NOT NULL,
-    FOREIGN KEY (feed_id) REFERENCES sensor_feeds(id)
+    FOREIGN KEY (feed_id) REFERENCES feeds(id)
 );
 
 -- create index
